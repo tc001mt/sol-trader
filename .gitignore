@@ -1,0 +1,40 @@
+# Environment & secrets
+.env
+.env.local
+.env.production
+.env.staging
+!.env.example
+*.key
+*.pem
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Runtime data
+data/
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Backup / scratch files
+*copy*.py
+*.bak
+*.tmp
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

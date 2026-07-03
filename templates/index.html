@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOL TRADER — AI Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #080b0f;
+    --surface:  #0d1117;
+    --border:   #1e2a38;
+    --accent:   #00ff88;
+    --danger:   #ff3b5c;
+    --warn:     #ffb800;
+    --muted:    #3d5066;
+    --text:     #c9d8e8;
+    --dim:      #607080;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,255,136,0.015) 2px,
+      rgba(0,255,136,0.015) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 28px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+  }
+
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+
+  header .subtitle {
+    color: var(--dim);
+    font-size: 11px;
+  }
+
+  .ts {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  /* Grid layout */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+  }
+
+  .card-title {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  /* Price cards */
+  .price-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .price-change {
+    font-size: 12px;
+    margin-top: 6px;
+  }
+
+  .up   { color: var(--accent); }
+  .down { color: var(--danger); }
+  .neutral { color: var(--dim); }
+
+  /* Alert badge */
+  .alert-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 2px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    font-family: 'Syne', sans-serif;
+  }
+
+  .VERDE  { background: rgba(0,255,136,0.15); color: var(--accent); border: 1px solid var(--accent); }
+  .GIALLO { background: rgba(255,184,0,0.15);  color: var(--warn);   border: 1px solid var(--warn); }
+  .ROSSO  { background: rgba(255,59,92,0.15);  color: var(--danger); border: 1px solid var(--danger); }
+
+  /* Fear greed bar */
+  .fg-bar-wrap {
+    background: var(--border);
+    border-radius: 2px;
+    height: 6px;
+    margin: 8px 0;
+    overflow: hidden;
+  }
+
+  .fg-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.8s ease;
+    background: linear-gradient(90deg, var(--danger), var(--warn), var(--accent));
+  }
+
+  .fg-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  /* Indicators */
+  .ind-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+
+  .ind-row:last-child { border-bottom: none; }
+  .ind-label { color: var(--dim); }
+
+  /* Table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  th {
+    text-align: left;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0 8px 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 7px 8px 7px 0;
+    border-bottom: 1px solid rgba(30,42,56,0.5);
+    color: var(--text);
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 2px;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+  }
+
+  .badge-compra  { background: rgba(0,255,136,0.1);  color: var(--accent); }
+  .badge-vendi   { background: rgba(255,59,92,0.1);   color: var(--danger); }
+  .badge-aspetta { background: rgba(96,112,128,0.2);  color: var(--dim); }
+  .badge-rifugio { background: rgba(255,184,0,0.1);   color: var(--warn); }
+
+  /* Manual trade form */
+  .form-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group label { font-size: 10px; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; }
+
+  select, input[type=number] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    padding: 7px 10px;
+    border-radius: 2px;
+    outline: none;
+  }
+
+  select:focus, input:focus { border-color: var(--accent); }
+
+  button {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    padding: 8px 18px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    text-transform: uppercase;
+  }
+
+  button:hover   { opacity: 0.85; }
+  button:active  { opacity: 0.7; }
+  button.danger  { background: var(--danger); color: #fff; }
+  button.warn    { background: var(--warn);   color: var(--bg); }
+  button.ghost   { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+
+  /* Log box */
+  .log-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 12px;
+    font-size: 11px;
+    color: var(--dim);
+    height: 90px;
+    overflow-y: auto;
+    font-family: 'Space Mono', monospace;
+    white-space: pre-wrap;
+  }
+
+  /* Pulse dot */
+  .pulse {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s infinite;
+    margin-right: 6px;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+
+  /* Reason text */
+  .motivo {
+    font-size: 20px;
+    color: var(--dim);
+    margin-top: 8px;
+    line-height: 1.6;
+    border-left: 2px solid var(--border);
+    padding-left: 10px;
+  }
+
+  /* Pending rules specific */
+  .rule-item {
+    border-bottom: 1px solid var(--border);
+    padding: 12px 0;
+  }
+  .rule-item:last-child { border-bottom: none; }
+  .rule-actions { margin-top: 10px; display: flex; gap: 8px; }
+
+  /* Wallet card */
+  .wallet-balance {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .wallet-label {
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* Confidence indicator */
+  .confidence-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .grid   { grid-template-columns: repeat(2, 1fr); }
+    .grid-2 { grid-template-columns: 1fr; }
+    .grid-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⬡ SOL TRADER</h1>
+  <span class="subtitle">autonomous ai trading — solana</span>
+  <span class="ts" id="ts">—</span>
+</header>
+
+<!-- Prices -->
+<div class="grid" id="prezzi-grid">
+  <div class="card">
+    <div class="card-title">BTC / USD</div>
+    <div class="price-val" id="btc-price">—</div>
+    <div class="price-change" id="btc-change">—</div>
+  </div>
+  <div class="card">
+    <div class="card-title">ETH / USD</div>
+    <div class="price-val" id="eth-price">—</div>
+    <div class="price-change" id="eth-change">—</div>
+  </div>
+  <div class="card">
+    <div class="card-title">SOL / USD</div>
+    <div class="price-val" id="sol-price">—</div>
+    <div class="price-change" id="sol-change">—</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Fear &amp; Greed</div>
+    <div class="fg-val" id="fg-val">—</div>
+    <div class="fg-bar-wrap"><div class="fg-bar" id="fg-bar" style="width:50%"></div></div>
+    <div style="font-size:11px;color:var(--dim)" id="fg-label">—</div>
+  </div>
+</div>
+
+<!-- Wallet balance card -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+    <span>💰 Wallet</span>
+    <span style="font-size:10px;color:var(--dim)" id="wallet-pubkey">—</span>
+  </div>
+  <div id="wallet-tokens-list" style="display:flex;gap:0;flex-direction:column"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+    <div class="wallet-label">Total Portfolio</div>
+    <div class="wallet-balance" id="wallet-totale" style="font-size:22px">—</div>
+  </div>
+</div>
+
+<!-- Alert + SOL Indicators -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title"><span class="pulse"></span>Market Status</div>
+    <div id="alert-badge" style="margin-bottom:10px">—</div>
+    <div class="motivo" id="alert-motivo">Loading...</div>
+    <!-- Current confidence -->
+    <div style="margin-top: 16px; padding-top: 8px; border-top: 1px solid var(--border);">
+      <div class="wallet-label" style="margin-bottom: 4px;">Last Decision Confidence</div>
+      <div class="confidence-value" id="last-confidence">—</div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="refreshSicurezza()">↻ Refresh</button>
+      <button class="warn" onclick="analisiSettimanale()">⚡ Analysis</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">SOL</div>
+    <div class="ind-row"><span class="ind-label">RSI (14)</span><span id="sol-rsi">—</span></div>
+    <div class="ind-row"><span class="ind-label">MACD</span><span id="sol-macd">—</span></div>
+    <div class="ind-row"><span class="ind-label">BB %</span><span id="sol-bb">—</span></div>
+    <div class="ind-row"><span class="ind-label">Funding</span><span id="fut-sol-fr">—</span></div>
+    <div class="ind-row"><span class="ind-label">Long/Short</span><span id="fut-sol-ls">—</span></div>
+
+    <div style="margin-top:14px" class="card-title">BTC</div>
+    <div class="ind-row"><span class="ind-label">RSI (14)</span><span id="btc-rsi">—</span></div>
+    <div class="ind-row"><span class="ind-label">MACD</span><span id="btc-macd">—</span></div>
+    <div class="ind-row"><span class="ind-label">BB %</span><span id="btc-bb">—</span></div>
+    <div class="ind-row"><span class="ind-label">Funding</span><span id="fut-btc-fr">—</span></div>
+    <div class="ind-row"><span class="ind-label">Long/Short</span><span id="fut-btc-ls">—</span></div>
+
+    <div style="margin-top:14px" class="card-title">ETH</div>
+    <div class="ind-row"><span class="ind-label">RSI (14)</span><span id="eth-rsi">—</span></div>
+    <div class="ind-row"><span class="ind-label">MACD</span><span id="eth-macd">—</span></div>
+    <div class="ind-row"><span class="ind-label">BB %</span><span id="eth-bb">—</span></div>
+    <div class="ind-row"><span class="ind-label">Funding</span><span id="fut-eth-fr">—</span></div>
+    <div class="ind-row"><span class="ind-label">Long/Short</span><span id="fut-eth-ls">—</span></div>
+  </div>
+</div>
+
+<!-- Manual Trade -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-title">Manual Trade</div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>From</label>
+      <select id="token-in">
+        <option>USDC</option><option>SOL</option><option>USDT</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>To</label>
+      <select id="token-out">
+        <option>SOL</option><option>BTC</option><option>ETH</option>
+        <option>JUP</option><option>BONK</option><option>USDC</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Amount USDC</label>
+      <input type="number" id="importo" value="10" min="1" step="1">
+    </div>
+    <button onclick="tradeManuale()">▶ Execute</button>
+    <button class="danger" onclick="rifugioUsdc()">🛡 USDC Refuge</button>
+  </div>
+  <div class="log-box" id="trade-log">Waiting...</div>
+</div>
+
+<!-- Performance + Trade history + Pending Rules -->
+<div class="grid-3" style="margin-bottom:16px">
+  <div class="card">
+    <div class="card-title">Recent Trades</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th><th>Token</th><th>Action</th>
+          <th>USDC</th><th>Result</th><th>Conf</th>
+        </tr>
+      </thead>
+      <tbody id="trades-tbody">
+        <tr><td colspan="6" style="color:var(--dim)">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Performance 30d</div>
+    <div id="perf-content">
+      <div class="ind-row"><span class="ind-label">Total Trades</span><span id="p-totale">—</span></div>
+      <div class="ind-row"><span class="ind-label">Win rate</span><span id="p-wr">—</span></div>
+      <div class="ind-row"><span class="ind-label">Profit</span><span id="p-profit">—</span></div>
+      <div class="ind-row"><span class="ind-label">Best Trade</span><span id="p-best">—</span></div>
+      <div class="ind-row"><span class="ind-label">Worst Trade</span><span id="p-worst">—</span></div>
+    </div>
+    <div style="margin-top:14px" class="card-title">By Token</div>
+    <div id="perf-token"></div>
+  </div>
+</div>
+
+<!-- Rules Pending Approval -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+    <span>📋 Rules Pending Approval</span>
+    <button class="danger" onclick="rifiutaTutte()" style="font-size:11px;padding:4px 10px;background:transparent;border-color:var(--danger)">🗑️ Reject All</button>
+  </div>
+  <div id="pending-rules-list">Loading...</div>
+</div>
+
+<script>
+// ── Fetch helpers ─────────────────────────────────────────────────────────────
+
+async function get(url) {
+  const r = await fetch(url);
+  return r.json();
+}
+
+async function post(url, data) {
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  });
+  return r.json();
+}
+
+function log(msg) {
+  const el = document.getElementById('trade-log');
+  const ts  = new Date().toLocaleTimeString('en-US');
+  el.textContent += `[${ts}] ${msg}\n`;
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── Prices and Wallet ─────────────────────────────────────────────────────────
+
+let lastSolPrice = 0;
+
+function fmtPrice(p) {
+  return p >= 1000
+    ? '$' + p.toLocaleString('en-US', {maximumFractionDigits: 0})
+    : '$' + p.toFixed(2);
+}
+
+function fmtChange(c) {
+  const cls = c > 0 ? 'up' : c < 0 ? 'down' : 'neutral';
+  const sign = c > 0 ? '▲' : c < 0 ? '▼' : '–';
+  return `<span class="${cls}">${sign} ${Math.abs(c).toFixed(2)}% 24h</span>`;
+}
+
+async function refreshStatus() {
+  try {
+    const d = await get('/api/status');
+
+    document.getElementById('ts').textContent =
+      new Date(d.timestamp).toLocaleString('en-US');
+
+    const P = d.prezzi;
+    if (P.BTC) {
+      document.getElementById('btc-price').textContent  = fmtPrice(P.BTC.price);
+      document.getElementById('btc-change').innerHTML   = fmtChange(P.BTC.change_24h);
+    }
+    if (P.ETH) {
+      document.getElementById('eth-price').textContent  = fmtPrice(P.ETH.price);
+      document.getElementById('eth-change').innerHTML   = fmtChange(P.ETH.change_24h);
+    }
+    if (P.SOL) {
+      lastSolPrice = P.SOL.price;
+      document.getElementById('sol-price').textContent  = fmtPrice(P.SOL.price);
+      document.getElementById('sol-change').innerHTML   = fmtChange(P.SOL.change_24h);
+    }
+
+    const fg = d.fear_greed;
+    document.getElementById('fg-val').textContent   = fg.value;
+    document.getElementById('fg-label').textContent = fg.label;
+    document.getElementById('fg-bar').style.width   = fg.value + '%';
+
+    const iSOL = d.indicatori?.SOL || {};
+    document.getElementById('sol-rsi').textContent  = iSOL.rsi ?? '—';
+    document.getElementById('sol-macd').textContent = iSOL.macd_cross ?? '—';
+    document.getElementById('sol-bb').textContent   = iSOL.bb_pct ?? '—';
+
+    const iBTC = d.indicatori?.BTC || {};
+    document.getElementById('btc-rsi').textContent  = iBTC.rsi ?? '—';
+    document.getElementById('btc-macd').textContent = iBTC.macd_cross ?? '—';
+    document.getElementById('btc-bb').textContent   = iBTC.bb_pct ?? '—';
+
+    const iETH = d.indicatori?.ETH || {};
+    document.getElementById('eth-rsi').textContent  = iETH.rsi ?? '—';
+    document.getElementById('eth-macd').textContent = iETH.macd_cross ?? '—';
+    document.getElementById('eth-bb').textContent   = iETH.bb_pct ?? '—';
+
+    const F = d.futures || {};
+    ['BTC','ETH','SOL'].forEach(sym => {
+      const f = F[sym];
+      const slug = sym.toLowerCase();
+      const elFr = document.getElementById('fut-' + slug + '-fr');
+      const elLs = document.getElementById('fut-' + slug + '-ls');
+      if (f) {
+        if (elFr) {
+          const fr = (f.funding_rate >= 0 ? '+' : '') + f.funding_rate.toFixed(4) + '%/8h';
+          elFr.textContent = fr + ' [' + f.signal + ']';
+          elFr.style.color = f.signal === 'overleveraged_long' ? 'var(--red)' :
+                             f.signal === 'short_squeeze_risk'  ? 'var(--green)' : '';
+        }
+        if (elLs && f.long_pct != null) {
+          elLs.textContent = 'L ' + f.long_pct + '% / S ' + f.short_pct + '%';
+          elLs.style.color = f.long_pct > 65 ? 'var(--red)' :
+                             f.short_pct > 65 ? 'var(--green)' : '';
+        }
+      }
+    });
+
+    const w = d.wallet || {};
+    document.getElementById('wallet-pubkey').textContent = w.pubkey ? w.pubkey.slice(0,8)+'...'+w.pubkey.slice(-6) : '—';
+
+    // Dynamic token list
+    const tokens = d.wallet_tokens || [];
+    const listEl = document.getElementById('wallet-tokens-list');
+    if (tokens.length === 0) {
+      listEl.innerHTML = '<div style="color:var(--dim);font-size:12px">Empty Wallet</div>';
+    } else {
+      listEl.innerHTML = tokens.map((t, i) => {
+        const saldoFmt = t.token === 'SOL' ? t.saldo.toFixed(4)
+                       : t.token === 'USDC' || t.token === 'USDT' ? t.saldo.toFixed(2)
+                       : t.saldo.toFixed(6);
+        const isLast = i === tokens.length - 1;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;${isLast?'':'border-bottom:1px solid var(--border)'}">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:11px;color:var(--dim);width:44px;letter-spacing:0.08em">${t.token}</span>
+            <span style="font-size:13px;color:var(--text)">${saldoFmt}</span>
+          </div>
+          <span style="font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:#fff">$${t.usd.toFixed(2)}</span>
+        </div>`;
+      }).join('');
+    }
+
+    const totale = d.wallet_totale;
+    document.getElementById('wallet-totale').textContent = totale > 0 ? '$' + totale.toFixed(2) : '—';
+    if (totale > 0) document.title = 'SOL Trader — $' + totale.toFixed(2);
+
+  } catch(e) {
+    console.error('Status error:', e);
+  }
+}
+
+async function refreshLastConfidence() {
+  try {
+    const trades = await get('/api/trades?n=1');
+    if (trades && trades.length > 0) {
+      const conf = trades[0].confidenza;
+      document.getElementById('last-confidence').textContent = conf !== null && conf !== undefined ? `${conf}%` : '—';
+    } else {
+      document.getElementById('last-confidence').textContent = '—';
+    }
+  } catch(e) {
+    console.error('Confidence error:', e);
+    document.getElementById('last-confidence').textContent = '?';
+  }
+}
+
+async function refreshSicurezza() {
+  document.getElementById('alert-motivo').textContent = 'Analysis in progress...';
+  try {
+    const sic = await get('/api/sicurezza');
+    const lvl = sic.livello || 'VERDE';
+    document.getElementById('alert-badge').innerHTML =
+      `<span class="alert-badge ${lvl}">${lvl}</span>`;
+    document.getElementById('alert-motivo').textContent = sic.motivo || '—';
+  } catch(e) {
+    document.getElementById('alert-motivo').textContent = 'Error: ' + e.message;
+  }
+}
+
+async function refreshTrades() {
+  const trades = await get('/api/trades?n=15');
+  const tbody  = document.getElementById('trades-tbody');
+  if (!trades.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--dim)">No trades</td></tr>';
+    return;
+  }
+  tbody.innerHTML = trades.map(t => {
+    const dt  = t.data ? t.data.substring(0,16).replace('T',' ') : '—';
+    const res = t.risultato_pct
+      ? `<span class="${t.risultato_pct > 0 ? 'up':'down'}">${t.risultato_pct > 0 ? '+':''}${t.risultato_pct}%</span>`
+      : '—';
+    const imp = t.importo_usdc ? '$' + (parseFloat(t.importo_usdc) < 1 ? parseFloat(t.importo_usdc).toFixed(2) : parseFloat(t.importo_usdc).toFixed(0)) : '—';
+    return `<tr>
+      <td>${dt}</td>
+      <td>${t.token}</td>
+      <td><span class="badge badge-${t.azione}">${t.azione}</span></td>
+      <td>${imp}</td>
+      <td>${res}</td>
+      <td>${t.confidenza ?? '—'}%</td>
+    </tr>`;
+  }).join('');
+  // Also update last trade confidence
+  refreshLastConfidence();
+}
+
+async function refreshPerf() {
+  const d = await get('/api/performance');
+  const g = d.globale || {};
+  document.getElementById('p-totale').textContent  = g.totale  ?? '0';
+  document.getElementById('p-wr').textContent      = (g.win_rate ?? '—') + '%';
+  document.getElementById('p-profit').textContent  = g.profit_usdc ? '$' + g.profit_usdc : '—';
+  document.getElementById('p-best').textContent    = g.miglior ? '+' + g.miglior + '%' : '—';
+  document.getElementById('p-worst').textContent   = g.peggior ? g.peggior + '%' : '—';
+
+  const pt = d.per_token || [];
+  document.getElementById('perf-token').innerHTML = pt.slice(0,5).map(t =>
+    `<div class="ind-row">
+      <span class="ind-label">${t.token}</span>
+      <span class="${t.media_pct > 0 ? 'up':'down'}">${t.win_rate}% wr / ${t.media_pct}% avg</span>
+    </div>`
+  ).join('') || '<div style="color:var(--dim);font-size:11px">No data</div>';
+}
+
+// ── Pending rules (rule approval) ─────────────────────────────────────────────
+
+async function loadPendingRules() {
+  try {
+    const rules = await get('/api/regole/pending');
+    const container = document.getElementById('pending-rules-list');
+    if (!rules.length) {
+      container.innerHTML = '<div style="color:var(--dim)">No rules pending</div>';
+      return;
+    }
+    container.innerHTML = rules.map(rule => {
+      const date = new Date(rule.data_aggiornamento).toLocaleString();
+      return `
+        <div class="rule-item">
+          <div><strong>Proposed on ${date}</strong></div>
+          <div style="font-size:11px; margin:8px 0">
+            Min confidence: ${rule.confidenza_minima}% | Stop loss: ${rule.stop_loss_pct}% | Max trade: ${rule.max_trade_pct}%
+          </div>
+          <div style="font-size:11px; margin:8px 0">
+            Core tokens: ${(rule.token_core || []).join(', ')} | Excluded: ${(rule.token_esclusi || []).join(', ') || 'none'}
+          </div>
+          <div style="font-size:11px; margin:8px 0; color: var(--accent)">
+            💬 ${rule.note_strategiche || 'No notes'}
+          </div>
+          <div class="rule-actions">
+            <button class="ghost" onclick="approvaRegole(${rule.id})">✅ Approve</button>
+            <button class="danger" onclick="rifiutaRegole(${rule.id})" style="background:transparent; border-color:var(--danger);">🗑️ Reject</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    console.error('Pending rules error:', e);
+    document.getElementById('pending-rules-list').innerHTML = '<div style="color:var(--danger)">Error loading rules</div>';
+  }
+}
+
+async function approvaRegole(regoleId) {
+  try {
+    await post(`/api/regole/approva/${regoleId}`, {});
+    log(`✅ Rules ID ${regoleId} approved. Will be active on next cycle.`);
+    loadPendingRules();
+  } catch(e) {
+    log(`❌ Approval error: ${e.message}`);
+  }
+}
+
+async function rifiutaRegole(regoleId) {
+  if (!confirm('Reject this proposal? The rules will be deleted.')) return;
+  try {
+    await post(`/api/regole/rifiuta/${regoleId}`, {});
+    log(`🗑️ Rules ID ${regoleId} rejected and removed.`);
+    loadPendingRules();
+  } catch(e) {
+    log(`❌ Rejection error: ${e.message}`);
+  }
+}
+
+async function rifiutaTutte() {
+  if (!confirm('Reject and delete ALL pending proposals?')) return;
+  try {
+    const r = await post('/api/regole/rifiuta-tutte', {});
+    log(`🗑️ Deleted ${r.eliminate} proposals.`);
+    loadPendingRules();
+  } catch(e) {
+    log(`❌ Bulk rejection error: ${e.message}`);
+  }
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+
+async function tradeManuale() {
+  const ti = document.getElementById('token-in').value;
+  const to = document.getElementById('token-out').value;
+  const im = parseFloat(document.getElementById('importo').value);
+  log(`Sending trade: ${im} ${ti} → ${to}...`);
+  try {
+    const r = await post('/api/trade/manuale', {token_in: ti, token_out: to, importo: im});
+    log(r.success
+      ? `✓ Trade OK${r.dry_run ? ' [DRY RUN]':''} — ${r.tx_hash}`
+      : `✗ Error: ${r.error}`
+    );
+    refreshTrades();
+    refreshStatus(); // update wallet
+  } catch(e) {
+    log('✗ Error: ' + e.message);
+  }
+}
+
+async function rifugioUsdc() {
+  if (!confirm('Confirm total USDC refuge?')) return;
+  log('🛡 USDC Refuge activated...');
+  try {
+    const r = await post('/api/rifugio', {});
+    log('Refuge completed');
+    refreshStatus();
+    refreshTrades();
+  } catch(e) {
+    log('Refuge error: ' + e.message);
+  }
+}
+
+async function analisiSettimanale() {
+  log('⚡ Weekly analysis in progress (may take 30s)...');
+  try {
+    const r = await post('/api/analisi', {});
+    log('Analysis: ' + (r.analisi || JSON.stringify(r)));
+    loadPendingRules();
+  } catch(e) {
+    log('Analysis error: ' + e.message);
+  }
+}
+
+// ── Init & auto-refresh ───────────────────────────────────────────────────────
+
+async function init() {
+  await Promise.all([refreshStatus(), refreshTrades(), refreshPerf(), loadPendingRules()]);
+  refreshSicurezza();
+}
+
+init();
+setInterval(refreshStatus,    30000);
+setInterval(refreshTrades,    30000);
+setInterval(refreshPerf,      60000);
+setInterval(refreshSicurezza, 300000);
+setInterval(loadPendingRules, 120000);
+setInterval(refreshLastConfidence, 30000); // update confidence every 30 seconds
+
+</script>
+</body>
+</html>
