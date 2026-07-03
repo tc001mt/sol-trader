@@ -152,6 +152,8 @@ def api_status():
                 continue
             prezzo = prezzi_usd.get(token, 0)
             usd = round(saldo * prezzo, 2)
+            if usd < 0.01:
+                continue
             totale_usd += usd
             wallet_tokens.append({"token": token, "saldo": saldo, "usd": usd})
         wallet_tokens.sort(key=lambda x: x["usd"], reverse=True)
