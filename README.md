@@ -86,6 +86,68 @@ Run `python app.py` and open `http://localhost:5000`. Shows:
 - 30-day performance stats
 - Pending AI rule proposals (approve/reject)
 
+## Running as a persistent service (Linux / systemd)
+
+To keep the bot and dashboard running 24/7, create two systemd service files.
+
+**`/etc/systemd/system/sol-trader-scheduler.service`**
+```ini
+[Unit]
+Description=SOL Trader — Trading Scheduler
+After=network.target
+
+[Service]
+User=YOUR_USER
+WorkingDirectory=/path/to/sol-trader
+EnvironmentFile=/path/to/sol-trader/.env
+ExecStart=/path/to/sol-trader/venv/bin/python scheduler.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**`/etc/systemd/system/sol-trader-dashboard.service`**
+```ini
+[Unit]
+Description=SOL Trader — Web Dashboard
+After=network.target
+
+[Service]
+User=YOUR_USER
+WorkingDirectory=/path/to/sol-trader
+EnvironmentFile=/path/to/sol-trader/.env
+ExecStart=/path/to/sol-trader/venv/bin/python app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start both:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable sol-trader-scheduler sol-trader-dashboard
+sudo systemctl start sol-trader-scheduler sol-trader-dashboard
+
+# Check status
+sudo systemctl status sol-trader-scheduler
+sudo systemctl status sol-trader-dashboard
+
+# View live logs
+journalctl -u sol-trader-scheduler -f
+```
+
+The services will restart automatically on crash and start on server reboot.
+
+## Support
+
+If this project is useful to you, consider donating — it helps cover server and API costs.
+
+**Solana:** `5qAqB9T1e51fRNG3MY5tYqAZXFVriTiKDQTBkGvx81dL`
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
