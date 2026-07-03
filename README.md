@@ -38,7 +38,7 @@ templates/
 ## Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/sol-trader.git
+git clone https://github.com/tc001mt/sol-trader.git
 cd sol-trader
 python -m venv venv
 source venv/bin/activate
