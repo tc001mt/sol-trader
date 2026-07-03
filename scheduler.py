@@ -509,6 +509,14 @@ async def ciclo_trading():
                     "sentiment_geo":   sicurezza.get("sentiment_geo", "neutral"),
                 }
                 result["decisione"] = decisione
+                trade_result = await esegui_decisione(decisione, dati)
+                await notifica(
+                    f"⛽ <b>SOL FEE RESERVE REPLENISHMENT</b>\n"
+                    f"💰 ${importo_sol_usdc}\n"
+                    + (f"✅ TX: {str(trade_result.get('tx_hash',''))[:30]}"
+                       if trade_result.get("success")
+                       else f"❌ ERROR: {str(trade_result.get('error',''))[:100]}")
+                )
             elif azione != "aspetta" and (conf >= min_conf or azione == "rifugio"):
                 log.info("Executing trade...")
                 trade_result = await esegui_decisione(decisione, dati)
