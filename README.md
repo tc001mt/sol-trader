@@ -142,6 +142,48 @@ journalctl -u sol-trader-scheduler -f
 
 The services will restart automatically on crash and start on server reboot.
 
+## Keeping up to date
+
+This project is actively developed. Fixes, improvements, and new features are pushed frequently — sometimes multiple times per day — as we observe the bot's behavior in live trading conditions.
+
+**Manual update:**
+```bash
+cd sol-trader
+git pull
+sudo systemctl restart sol-trader-scheduler sol-trader-dashboard
+```
+
+**Automatic update (optional):**
+
+Add a cron job to pull and restart every hour:
+```bash
+crontab -e
+```
+```
+0 * * * * cd /path/to/sol-trader && git pull --ff-only && sudo systemctl restart sol-trader-scheduler sol-trader-dashboard
+```
+
+> Before updating in production, check the [commit history](https://github.com/tc001mt/sol-trader/commits/main) for any breaking changes or new required environment variables.
+
+---
+
+## Disclaimer
+
+**Use at your own risk.**
+
+This software is provided for educational and experimental purposes only. By using SOL Trader you acknowledge and accept the following:
+
+- **No financial advice.** Nothing in this project constitutes financial, investment, or trading advice.
+- **No guarantee of profit.** Past behavior of the bot does not guarantee future results. Cryptocurrency markets are highly volatile.
+- **Risk of loss.** You may lose part or all of the funds you allocate to this bot. Never use money you cannot afford to lose.
+- **No liability.** The authors and contributors accept no responsibility for any financial losses, missed trades, technical malfunctions, API outages, on-chain errors, or any other damage arising from the use of this software.
+- **No uptime guarantee.** The bot may stop working at any time due to changes in external APIs (Jupiter, CoinGecko, OpenRouter, Binance), network issues, or software bugs.
+- **Always test first.** Run with `DRY_RUN=true` until you fully understand the system's behavior.
+
+You are solely responsible for your trading decisions and any funds you put at risk.
+
+---
+
 ## Support
 
 If this project is useful to you, consider donating — it helps cover server and API costs.
