@@ -198,7 +198,7 @@ def api_sicurezza():
 
 @app.route("/api/public/status")
 def api_public_status():
-    """Public endpoint: serves cached market status for mtelani.com. No auth required."""
+    """Public endpoint: serves cached market status for external display. No auth required."""
     try:
         if os.path.exists(_MARKET_CACHE_FILE):
             with open(_MARKET_CACHE_FILE) as f:

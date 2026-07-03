@@ -677,7 +677,7 @@ async def raccogli_tutto(token_list: list = None, pubkey: str = None) -> dict:
     prezzi, fear_greed, notizie_crypto, notizie_geo, trump_tweets, top_solana, futures = base_results[:7]
     ind_results = base_results[7:]
 
-    wallet = {}  # loaded by caller via trader.get_wallet_completo() (RPC Helius)
+    wallet = {}  # loaded by caller via trader.get_wallet_completo()
 
     def safe(v, default):
         return default if isinstance(v, Exception) else v
