@@ -696,7 +696,7 @@ async function refreshPerf() {
   document.getElementById('perf-token').innerHTML = pt.slice(0,5).map(t =>
     `<div class="ind-row">
       <span class="ind-label">${t.token}</span>
-      <span class="${t.media_pct > 0 ? 'up':'down'}">${t.win_rate}% wr / ${t.media_pct}% avg</span>
+      <span class="${t.media_pct > 0 ? 'up':'down'}">${t.win_rate ?? '—'}% wr / ${t.media_pct != null ? t.media_pct + '%' : '—'} avg</span>
     </div>`
   ).join('') || '<div style="color:var(--dim);font-size:11px">No data</div>';
 }
