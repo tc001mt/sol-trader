@@ -36,6 +36,7 @@ build/
 # Private services (not published)
 shitcoin_hunter.py
 shitcoin_hunter.service
+.env.hunter
 
 # IDE
 .vscode/
