@@ -33,6 +33,10 @@ build/
 *.bak
 *.tmp
 
+# Private services (not published)
+shitcoin_hunter.py
+shitcoin_hunter.service
+
 # IDE
 .vscode/
 .idea/
