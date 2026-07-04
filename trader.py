@@ -189,8 +189,8 @@ async def esegui_swap(token_in: str, token_out: str, amount_in: float, slippage_
     if order.get("errorCode"):
         return {"success": False, "error": f"Jupiter: {order.get('errorMessage', order['errorCode'])}"}
 
-    # v2 priceImpact is a decimal (−0.001 = −0.1%), convert to %
-    price_impact = abs(float(order.get("priceImpact", 0))) * 100
+    # v2 "priceImpact" is already a percentage (-1.23 = -1.23%); "priceImpactPct" is the decimal form.
+    price_impact = abs(float(order.get("priceImpact", 0)))
     if price_impact > 2.0:
         return {"success": False, "error": f"Price impact too high: {price_impact:.2f}%"}
 
