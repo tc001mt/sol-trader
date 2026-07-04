@@ -153,13 +153,17 @@ def api_status():
                 continue
             if saldo <= 0:
                 continue
-            prezzo = prezzi_usd.get(token, 0)
-            usd = round(saldo * prezzo, 2)
+            if token not in prezzi_usd:
+                # Price fetch failed/rate-limited this cycle — show the balance instead
+                # of silently hiding it (a real balance must never look like dust).
+                wallet_tokens.append({"token": token, "saldo": saldo, "usd": None})
+                continue
+            usd = round(saldo * prezzi_usd[token], 2)
             if usd < 0.01:
                 continue
             totale_usd += usd
             wallet_tokens.append({"token": token, "saldo": saldo, "usd": usd})
-        wallet_tokens.sort(key=lambda x: x["usd"], reverse=True)
+        wallet_tokens.sort(key=lambda x: (x["usd"] is None, -(x["usd"] or 0)))
 
         return jsonify({
             "prezzi":        prezzi,
@@ -349,12 +353,15 @@ def api_hunter():
         for token, saldo in wallet.items():
             if token == "pubkey" or not isinstance(saldo, (int, float)) or saldo <= 0:
                 continue
-            usd = round(saldo * prezzi_usd.get(token, 0), 2)
+            if token not in prezzi_usd:
+                wallet_tokens.append({"token": token, "saldo": saldo, "usd": None})
+                continue
+            usd = round(saldo * prezzi_usd[token], 2)
             if usd < 0.01:
                 continue
             totale_usd += usd
             wallet_tokens.append({"token": token, "saldo": saldo, "usd": usd})
-        wallet_tokens.sort(key=lambda x: x["usd"], reverse=True)
+        wallet_tokens.sort(key=lambda x: (x["usd"] is None, -(x["usd"] or 0)))
     except Exception as e:
         log.warning(f"hunter wallet error: {e}")
         wallet, wallet_tokens, totale_usd = {}, [], 0.0
