@@ -190,6 +190,26 @@ If this project is useful to you, consider donating — it helps cover server an
 
 **Solana:** `5qAqB9T1e51fRNG3MY5tYqAZXFVriTiKDQTBkGvx81dL`
 
+## Referral Program
+
+SOL Trader uses the [Jupiter Referral Program](https://referral.jup.ag) to support ongoing development.
+
+By default, a small fee (0.5%) is applied to every swap and sent to the project's referral account. This does not affect your trading results — Jupiter absorbs the cost from routing fees.
+
+**To use your own referral account instead:**
+1. Visit [referral.jup.ag](https://referral.jup.ag) and connect your wallet
+2. Create a referral account (one-time on-chain transaction)
+3. Copy the referral account address
+4. Add it to your `.env`:
+   ```
+   JUPITER_REFERRAL_ACCOUNT=<your_referral_account_address>
+   JUPITER_REFERRAL_FEE_BPS=50
+   ```
+
+**To disable referral entirely:** set `JUPITER_REFERRAL_ACCOUNT=` (empty).
+
+---
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -10,8 +10,9 @@ from dotenv import load_dotenv
 load_dotenv()
 log = logging.getLogger(__name__)
 
-JUPITER_QUOTE_URL = "https://api.jup.ag/swap/v1/quote"
-JUPITER_SWAP_URL  = "https://api.jup.ag/swap/v1/swap"
+JUPITER_QUOTE_URL = "https://api.jup.ag/swap/v1/quote"   # v1, kept for get_quote()
+JUPITER_SWAP_URL  = "https://api.jup.ag/swap/v1/swap"    # v1, kept for reference
+JUPITER_ORDER_URL = "https://api.jup.ag/swap/v2/order"   # v2: quote+swap in one call
 RPC_URL = os.getenv("SOLANA_RPC", "https://api.mainnet-beta.solana.com")
 
 MINTS = {
@@ -153,60 +154,69 @@ async def esegui_swap(token_in: str, token_out: str, amount_in: float, slippage_
     if not kp:
         return {"success": False, "error": "Keypair not available"}
 
-    try:
-        quote_data = await get_quote(token_in, token_out, amount_in, slippage_bps)
-        quote = quote_data["quote"]
-    except Exception as e:
-        return {"success": False, "error": f"Quote error: {e}"}
+    mint_in  = MINTS.get(token_in)
+    mint_out = MINTS.get(token_out)
+    if not mint_in or not mint_out:
+        return {"success": False, "error": f"Unknown token: {token_in} or {token_out}"}
 
-    if quote_data["price_impact"] > 2.0:
-        return {"success": False, "error": f"Price impact too high: {quote_data['price_impact']:.2f}%"}
+    dec_in     = DECIMALS.get(token_in, 6)
+    amount_raw = int(amount_in * (10 ** dec_in))
 
-    payload = {
-        "quoteResponse": quote,
-        "userPublicKey": str(kp.pubkey()),
-        "dynamicComputeUnitLimit": True,
-        "dynamicSlippage": {"maxBps": 300},
-        "prioritizationFeeLamports": {
-            "priorityLevelWithMaxLamports": {
-                "priorityLevel": "high",
-                "maxLamports": 500_000
-            }
-        }
+    # Jupiter v2: quote + swap in a single GET call
+    params: dict = {
+        "inputMint":   mint_in,
+        "outputMint":  mint_out,
+        "amount":      amount_raw,
+        "taker":       str(kp.pubkey()),
+        "slippageBps": slippage_bps,
     }
-    headers = {"Content-Type": "application/json"}
-    async with httpx.AsyncClient(timeout=30) as c:
-        r = await c.post(JUPITER_SWAP_URL, json=payload, headers=headers)
-        if not r.is_success:
-            log.error(f"Jupiter swap 400 body: {r.text[:500]}")
-        r.raise_for_status()
-        swap_response = r.json()
+    ref_account = os.getenv("JUPITER_REFERRAL_ACCOUNT", "")
+    ref_fee_bps = int(os.getenv("JUPITER_REFERRAL_FEE_BPS", "50"))
+    if ref_account:
+        params["referralAccount"] = ref_account
+        params["referralFee"]     = ref_fee_bps
 
-    if not swap_response.get("swapTransaction"):
-        return {"success": False, "error": "No transaction in swap response"}
+    try:
+        async with httpx.AsyncClient(timeout=20) as c:
+            r = await c.get(JUPITER_ORDER_URL, params=params)
+            if not r.is_success:
+                log.error(f"Jupiter order error: {r.text[:500]}")
+            r.raise_for_status()
+            order = r.json()
+    except Exception as e:
+        return {"success": False, "error": f"Order error: {e}"}
+
+    if order.get("errorCode"):
+        return {"success": False, "error": f"Jupiter: {order.get('errorMessage', order['errorCode'])}"}
+
+    # v2 priceImpact is a decimal (−0.001 = −0.1%), convert to %
+    price_impact = abs(float(order.get("priceImpact", 0))) * 100
+    if price_impact > 2.0:
+        return {"success": False, "error": f"Price impact too high: {price_impact:.2f}%"}
+
+    tx_b64 = order.get("transaction")
+    if not tx_b64:
+        return {"success": False, "error": "No transaction in order response"}
+
+    dec_out    = DECIMALS.get(token_out, 6)
+    amount_out = int(order.get("outAmount", 0)) / (10 ** dec_out)
+    log.info(f"Order: {amount_in} {token_in} → {amount_out:.6f} {token_out} | impact={price_impact:.3f}%")
 
     from solders.transaction import VersionedTransaction
     from solders import message as solders_message
 
-    raw_tx = base64.b64decode(swap_response["swapTransaction"])
-    tx = VersionedTransaction.from_bytes(raw_tx)
-
-    # Correct signing for solders 0.27 — use to_bytes_versioned
-    signature = kp.sign_message(
-        solders_message.to_bytes_versioned(tx.message)
-    )
+    raw_tx    = base64.b64decode(tx_b64)
+    tx        = VersionedTransaction.from_bytes(raw_tx)
+    signature = kp.sign_message(solders_message.to_bytes_versioned(tx.message))
     signed_tx = VersionedTransaction.populate(tx.message, [signature])
-    signed_tx_b64 = base64.b64encode(bytes(signed_tx)).decode()
-    
-    # --- Send with preflight enabled ---
+    signed_b64 = base64.b64encode(bytes(signed_tx)).decode()
+
     async with httpx.AsyncClient(timeout=60) as c:
-        rpc_payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "sendTransaction",
-            "params": [signed_tx_b64, {"encoding": "base64", "skipPreflight": True, "maxRetries": 3}]
-        }
-        r = await c.post(RPC_URL, json=rpc_payload)
+        r = await c.post(RPC_URL, json={
+            "jsonrpc": "2.0", "id": 1,
+            "method":  "sendTransaction",
+            "params":  [signed_b64, {"encoding": "base64", "skipPreflight": True, "maxRetries": 3}]
+        })
         result = r.json()
 
     if "error" in result:
@@ -216,34 +226,29 @@ async def esegui_swap(token_in: str, token_out: str, amount_in: float, slippage_
     txid = result["result"]
     log.info(f"Tx sent: {txid}. Waiting for confirmation...")
 
-    # --- Waiting for confirmation (max 60s) ---
     for _ in range(30):
         await asyncio.sleep(2)
-        status_payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "getSignatureStatuses",
-            "params": [[txid], {"searchTransactionHistory": True}]
-        }
         async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.post(RPC_URL, json=status_payload)
-            status_data = r.json()
-            status = status_data.get("result", {}).get("value", [None])[0]
-            if status:
-                if status.get("confirmationStatus") in ("confirmed", "finalized"):
-                    if status.get("err"):
-                        log.error(f"Tx executed with error: {status['err']}")
-                        return {"success": False, "error": f"Execution error: {status['err']}"}
-                    log.info(f"Swap confirmed! txid={txid}")
-                    return {
-                        "success": True,
-                        "dry_run": False,
-                        "token_in": token_in,
-                        "token_out": token_out,
-                        "amount_in": amount_in,
-                        "amount_out": quote_data["amount_out"],
-                        "tx_hash": txid,
-                    }
+            r = await c.post(RPC_URL, json={
+                "jsonrpc": "2.0", "id": 1,
+                "method":  "getSignatureStatuses",
+                "params":  [[txid], {"searchTransactionHistory": True}]
+            })
+            status = r.json().get("result", {}).get("value", [None])[0]
+            if status and status.get("confirmationStatus") in ("confirmed", "finalized"):
+                if status.get("err"):
+                    log.error(f"Tx executed with error: {status['err']}")
+                    return {"success": False, "error": f"Execution error: {status['err']}"}
+                log.info(f"Swap confirmed! txid={txid}")
+                return {
+                    "success": True,
+                    "dry_run": False,
+                    "token_in":   token_in,
+                    "token_out":  token_out,
+                    "amount_in":  amount_in,
+                    "amount_out": amount_out,
+                    "tx_hash":    txid,
+                }
 
     log.error(f"Timeout: tx {txid} not confirmed")
     return {"success": False, "error": "Transaction not confirmed in time"}
