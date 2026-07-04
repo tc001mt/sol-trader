@@ -164,11 +164,14 @@ async def esegui_swap(token_in: str, token_out: str, amount_in: float, slippage_
 
     # Jupiter v2: quote + swap in a single GET call
     params: dict = {
-        "inputMint":   mint_in,
-        "outputMint":  mint_out,
-        "amount":      amount_raw,
-        "taker":       str(kp.pubkey()),
-        "slippageBps": slippage_bps,
+        "inputMint":        mint_in,
+        "outputMint":       mint_out,
+        "amount":           amount_raw,
+        "taker":            str(kp.pubkey()),
+        "slippageBps":      slippage_bps,
+        # Cap priority fee instead of leaving it fully automatic (v1 had priorityLevelWithMaxLamports.maxLamports=500_000)
+        "priorityFeeLamports": 500_000,
+        "broadcastFeeType":    "maxCap",
     }
     ref_account = os.getenv("JUPITER_REFERRAL_ACCOUNT", "")
     ref_fee_bps = int(os.getenv("JUPITER_REFERRAL_FEE_BPS", "50"))
