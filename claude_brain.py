@@ -42,6 +42,7 @@ SCALP MODE — short trades are valid:
 - A +1% to +3% gain in 1-6 hours is a good trade. Do not wait for perfect long setup.
 - If MACD bullish + RSI 35-65 + price momentum visible → compra is allowed.
 - Scalp size: 10-15% of available USDC, never more than 20%.
+- ATR% = average daily price range as % of price (volatility). ATR% > 8-10% → size at the low end (10%) or skip; low ATR% → normal sizing is fine.
 - Use motivazione: "scalp momentum" to signal short-term intent.
 - The system handles take profit automatically. Your job: identify the entry.
 """
@@ -238,7 +239,7 @@ def _build_context(dati: dict, regole: dict, memoria: str) -> str:
         if v:
             ind_str += (
                 f"{sym}: RSI={v.get('rsi')} MACD={v.get('macd_cross')} "
-                f"BB%={v.get('bb_pct')} | "
+                f"BB%={v.get('bb_pct')} ATR%={v.get('atr_pct')} | "
             )
 
     futures = dati.get("futures", {})

@@ -407,6 +407,7 @@
     <div class="ind-row"><span class="ind-label">RSI (14)</span><span id="sol-rsi">—</span></div>
     <div class="ind-row"><span class="ind-label">MACD</span><span id="sol-macd">—</span></div>
     <div class="ind-row"><span class="ind-label">BB %</span><span id="sol-bb">—</span></div>
+    <div class="ind-row"><span class="ind-label">ATR %</span><span id="sol-atr">—</span></div>
     <div class="ind-row"><span class="ind-label">Funding</span><span id="fut-sol-fr">—</span></div>
     <div class="ind-row"><span class="ind-label">Long/Short</span><span id="fut-sol-ls">—</span></div>
 
@@ -414,6 +415,7 @@
     <div class="ind-row"><span class="ind-label">RSI (14)</span><span id="btc-rsi">—</span></div>
     <div class="ind-row"><span class="ind-label">MACD</span><span id="btc-macd">—</span></div>
     <div class="ind-row"><span class="ind-label">BB %</span><span id="btc-bb">—</span></div>
+    <div class="ind-row"><span class="ind-label">ATR %</span><span id="btc-atr">—</span></div>
     <div class="ind-row"><span class="ind-label">Funding</span><span id="fut-btc-fr">—</span></div>
     <div class="ind-row"><span class="ind-label">Long/Short</span><span id="fut-btc-ls">—</span></div>
 
@@ -421,6 +423,7 @@
     <div class="ind-row"><span class="ind-label">RSI (14)</span><span id="eth-rsi">—</span></div>
     <div class="ind-row"><span class="ind-label">MACD</span><span id="eth-macd">—</span></div>
     <div class="ind-row"><span class="ind-label">BB %</span><span id="eth-bb">—</span></div>
+    <div class="ind-row"><span class="ind-label">ATR %</span><span id="eth-atr">—</span></div>
     <div class="ind-row"><span class="ind-label">Funding</span><span id="fut-eth-fr">—</span></div>
     <div class="ind-row"><span class="ind-label">Long/Short</span><span id="fut-eth-ls">—</span></div>
   </div>
@@ -606,16 +609,19 @@ async function refreshStatus() {
     document.getElementById('sol-rsi').textContent  = iSOL.rsi ?? '—';
     document.getElementById('sol-macd').textContent = iSOL.macd_cross ?? '—';
     document.getElementById('sol-bb').textContent   = iSOL.bb_pct ?? '—';
+    document.getElementById('sol-atr').textContent  = iSOL.atr_pct != null ? iSOL.atr_pct + '%' : '—';
 
     const iBTC = d.indicatori?.BTC || {};
     document.getElementById('btc-rsi').textContent  = iBTC.rsi ?? '—';
     document.getElementById('btc-macd').textContent = iBTC.macd_cross ?? '—';
     document.getElementById('btc-bb').textContent   = iBTC.bb_pct ?? '—';
+    document.getElementById('btc-atr').textContent  = iBTC.atr_pct != null ? iBTC.atr_pct + '%' : '—';
 
     const iETH = d.indicatori?.ETH || {};
     document.getElementById('eth-rsi').textContent  = iETH.rsi ?? '—';
     document.getElementById('eth-macd').textContent = iETH.macd_cross ?? '—';
     document.getElementById('eth-bb').textContent   = iETH.bb_pct ?? '—';
+    document.getElementById('eth-atr').textContent  = iETH.atr_pct != null ? iETH.atr_pct + '%' : '—';
 
     const F = d.futures || {};
     ['BTC','ETH','SOL'].forEach(sym => {

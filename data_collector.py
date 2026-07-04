@@ -278,6 +278,29 @@ async def get_indicatori(token: str = "SOL", giorni: int = 30) -> dict:
             "bb_lower":    round(float(bb.bollinger_lband().iloc[-1]), 4),
             "bb_pct":      round(float(bb.bollinger_pband().iloc[-1]), 4),
         }
+
+        # ATR fetched separately — failure here (e.g. rate limit) must not cost us RSI/MACD/BB
+        try:
+            async with httpx.AsyncClient(timeout=20) as c:
+                ohlc_r = await c.get(
+                    f"{COINGECKO_BASE}/coins/{cg_id}/ohlc",
+                    params={"vs_currency": "usd", "days": giorni},
+                    headers=headers
+                )
+                ohlc_r.raise_for_status()
+                ohlc = ohlc_r.json()
+
+            if len(ohlc) >= 15:
+                odf = pd.DataFrame(ohlc, columns=["ts", "open", "high", "low", "close"])
+                atr = ta.volatility.AverageTrueRange(
+                    odf["high"], odf["low"], odf["close"], window=14
+                ).average_true_range().iloc[-1]
+                last_close = float(odf["close"].iloc[-1])
+                if last_close:
+                    result["atr_pct"] = round(float(atr) / last_close * 100, 2)
+        except Exception as e:
+            log.warning(f"ATR {token} error: {e}")
+
         _IND_CACHE[cache_key] = (result, now)
         return result
 
