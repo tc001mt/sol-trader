@@ -13,6 +13,9 @@ from database import (
 )
 
 load_dotenv()
+import trader  # import before shitcoin_hunter can ever run: bakes in the correct
+                # keypair at process start, immune to shitcoin_hunter's later
+                # load_dotenv(".env.hunter", override=True) clobbering os.environ
 log = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "changeme")
@@ -325,11 +328,45 @@ def api_hunter():
         log.warning(f"hunter trades query error: {e}")
         hunter_trades = []
 
+    # Live wallet balances (SOL, USDC, and each open-position token), same shape
+    # as the main bot's wallet_tokens/wallet_totale
+    positions = state.get("positions", {})
+    try:
+        from shitcoin_hunter import get_wallet_completo
+        from data_collector import get_prezzi
+
+        async def fetch_wallet():
+            return await asyncio.gather(get_wallet_completo(), get_prezzi(["SOL"]))
+
+        wallet, sol_prezzo = asyncio.run(fetch_wallet())
+
+        prezzi_usd = {"SOL": sol_prezzo.get("SOL", {}).get("price", 0), "USDC": 1.0}
+        for p in positions.values():
+            prezzi_usd[p.get("symbol", "")] = p.get("current_price") or p.get("entry_price", 0)
+
+        wallet_tokens = []
+        totale_usd = 0.0
+        for token, saldo in wallet.items():
+            if token == "pubkey" or not isinstance(saldo, (int, float)) or saldo <= 0:
+                continue
+            usd = round(saldo * prezzi_usd.get(token, 0), 2)
+            if usd < 0.01:
+                continue
+            totale_usd += usd
+            wallet_tokens.append({"token": token, "saldo": saldo, "usd": usd})
+        wallet_tokens.sort(key=lambda x: x["usd"], reverse=True)
+    except Exception as e:
+        log.warning(f"hunter wallet error: {e}")
+        wallet, wallet_tokens, totale_usd = {}, [], 0.0
+
     return jsonify({
         "config":        config,
         "running":       running,
-        "positions":     state.get("positions", {}),
+        "positions":     positions,
         "recent_trades": hunter_trades,
+        "wallet":        wallet,
+        "wallet_tokens": wallet_tokens,
+        "wallet_totale": round(totale_usd, 2),
     })
 
 

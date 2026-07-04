@@ -35,7 +35,7 @@ DECIMALS = {
 
 DRY_RUN = os.getenv("DRY_RUN", "true").lower() == "true"
 
-def load_keypair():
+def _load_keypair_from_env():
     try:
         from solders.keypair import Keypair
         raw = os.getenv("SOLANA_PRIVATE_KEY", "")
@@ -49,6 +49,15 @@ def load_keypair():
     except Exception as e:
         log.error(f"Keypair error: {e}")
         return None
+
+# Loaded once at import time — must NOT be re-read via os.getenv() on every call.
+# Other modules imported later in the same process (e.g. shitcoin_hunter, which
+# loads .env.hunter with override=True) mutate os.environ globally; re-reading
+# here would silently swap in the wrong wallet's key mid-process.
+_KEYPAIR = _load_keypair_from_env()
+
+def load_keypair():
+    return _KEYPAIR
 
 def get_pubkey() -> str:
     kp = load_keypair()
