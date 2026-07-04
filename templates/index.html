@@ -399,7 +399,9 @@
     <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
       <button onclick="refreshSicurezza()">↻ Refresh</button>
       <button class="warn" onclick="analisiSettimanale()">⚡ Analysis</button>
+      <button class="danger" onclick="rifugioUsdc()">🛡 USDC Refuge</button>
     </div>
+    <div class="log-box" id="trade-log" style="margin-top:8px">Waiting...</div>
   </div>
 
   <div class="card">
@@ -427,33 +429,6 @@
     <div class="ind-row"><span class="ind-label">Funding</span><span id="fut-eth-fr">—</span></div>
     <div class="ind-row"><span class="ind-label">Long/Short</span><span id="fut-eth-ls">—</span></div>
   </div>
-</div>
-
-<!-- Manual Trade -->
-<div class="card" style="margin-bottom:16px">
-  <div class="card-title">Manual Trade</div>
-  <div class="form-row">
-    <div class="form-group">
-      <label>From</label>
-      <select id="token-in">
-        <option>USDC</option><option>SOL</option><option>USDT</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>To</label>
-      <select id="token-out">
-        <option>SOL</option><option>BTC</option><option>ETH</option>
-        <option>JUP</option><option>BONK</option><option>USDC</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>Amount USDC</label>
-      <input type="number" id="importo" value="10" min="1" step="1">
-    </div>
-    <button onclick="tradeManuale()">▶ Execute</button>
-    <button class="danger" onclick="rifugioUsdc()">🛡 USDC Refuge</button>
-  </div>
-  <div class="log-box" id="trade-log">Waiting...</div>
 </div>
 
 <!-- Performance + Trade history + Pending Rules -->
@@ -939,24 +914,6 @@ async function rifiutaTutte() {
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────────
-
-async function tradeManuale() {
-  const ti = document.getElementById('token-in').value;
-  const to = document.getElementById('token-out').value;
-  const im = parseFloat(document.getElementById('importo').value);
-  log(`Sending trade: ${im} ${ti} → ${to}...`);
-  try {
-    const r = await post('/api/trade/manuale', {token_in: ti, token_out: to, importo: im});
-    log(r.success
-      ? `✓ Trade OK${r.dry_run ? ' [DRY RUN]':''} — ${r.tx_hash}`
-      : `✗ Error: ${r.error}`
-    );
-    refreshTrades();
-    refreshStatus(); // update wallet
-  } catch(e) {
-    log('✗ Error: ' + e.message);
-  }
-}
 
 async function rifugioUsdc() {
   if (!confirm('Confirm total USDC refuge?')) return;
