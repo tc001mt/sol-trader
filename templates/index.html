@@ -372,6 +372,57 @@
   </div>
 </div>
 
+<!-- Shitcoin Hunter -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+    <span>🦟 Shitcoin Hunter Wallet</span>
+    <span id="hunter-status-badge" style="font-size:11px"></span>
+  </div>
+
+  <!-- Config row -->
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;font-size:11px;color:var(--dim)">
+    <span>💰 <span id="h-amount">—</span>/trade</span>
+    <span>📦 <span id="h-pos-open">—</span>/<span id="h-pos-max">—</span> positions</span>
+    <span>🎯 TP <span id="h-tp">—</span>%</span>
+    <span>🛑 SL <span id="h-sl">—</span>%</span>
+    <span style="font-family:monospace;color:var(--accent)" id="h-wallet">—</span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+
+    <!-- Wallet -->
+    <div>
+      <div style="font-size:10px;letter-spacing:0.1em;color:var(--dim);text-transform:uppercase;margin-bottom:8px">Wallet</div>
+      <div id="hunter-wallet-list">
+        <div style="color:var(--dim);font-size:12px">—</div>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:var(--dim)">Total: <span id="hunter-wallet-totale" style="color:var(--text);font-weight:700">—</span></div>
+    </div>
+
+    <!-- Open positions -->
+    <div>
+      <div style="font-size:10px;letter-spacing:0.1em;color:var(--dim);text-transform:uppercase;margin-bottom:8px">Open Positions</div>
+      <div id="hunter-positions">
+        <div style="color:var(--dim);font-size:12px">No open positions</div>
+      </div>
+    </div>
+
+    <!-- Recent trades -->
+    <div>
+      <div style="font-size:10px;letter-spacing:0.1em;color:var(--dim);text-transform:uppercase;margin-bottom:8px">Recent Trades</div>
+      <table style="font-size:11px">
+        <thead>
+          <tr><th>Token</th><th>Action</th><th>P&amp;L</th><th>Date</th></tr>
+        </thead>
+        <tbody id="hunter-trades-tbody">
+          <tr><td colspan="4" style="color:var(--dim)">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
 <!-- Wallet balance card -->
 <div class="card" style="margin-bottom:16px">
   <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
@@ -459,57 +510,6 @@
     </div>
     <div style="margin-top:14px" class="card-title">By Token</div>
     <div id="perf-token"></div>
-  </div>
-</div>
-
-<!-- Shitcoin Hunter -->
-<div class="card" style="margin-bottom:16px">
-  <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
-    <span>🦟 Shitcoin Hunter</span>
-    <span id="hunter-status-badge" style="font-size:11px"></span>
-  </div>
-
-  <!-- Config row -->
-  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;font-size:11px;color:var(--dim)">
-    <span>💰 <span id="h-amount">—</span>/trade</span>
-    <span>📦 <span id="h-pos-open">—</span>/<span id="h-pos-max">—</span> positions</span>
-    <span>🎯 TP <span id="h-tp">—</span>%</span>
-    <span>🛑 SL <span id="h-sl">—</span>%</span>
-    <span style="font-family:monospace;color:var(--accent)" id="h-wallet">—</span>
-  </div>
-
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
-
-    <!-- Wallet -->
-    <div>
-      <div style="font-size:10px;letter-spacing:0.1em;color:var(--dim);text-transform:uppercase;margin-bottom:8px">Wallet</div>
-      <div id="hunter-wallet-list">
-        <div style="color:var(--dim);font-size:12px">—</div>
-      </div>
-      <div style="margin-top:8px;font-size:11px;color:var(--dim)">Total: <span id="hunter-wallet-totale" style="color:var(--text);font-weight:700">—</span></div>
-    </div>
-
-    <!-- Open positions -->
-    <div>
-      <div style="font-size:10px;letter-spacing:0.1em;color:var(--dim);text-transform:uppercase;margin-bottom:8px">Open Positions</div>
-      <div id="hunter-positions">
-        <div style="color:var(--dim);font-size:12px">No open positions</div>
-      </div>
-    </div>
-
-    <!-- Recent trades -->
-    <div>
-      <div style="font-size:10px;letter-spacing:0.1em;color:var(--dim);text-transform:uppercase;margin-bottom:8px">Recent Trades</div>
-      <table style="font-size:11px">
-        <thead>
-          <tr><th>Token</th><th>Action</th><th>P&L</th><th>Date</th></tr>
-        </thead>
-        <tbody id="hunter-trades-tbody">
-          <tr><td colspan="4" style="color:var(--dim)">Loading...</td></tr>
-        </tbody>
-      </table>
-    </div>
-
   </div>
 </div>
 
