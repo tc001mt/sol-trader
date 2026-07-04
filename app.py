@@ -259,6 +259,80 @@ def api_memoria():
     return jsonify({"memoria": get_memoria_compressa()})
 
 
+@app.route("/api/hunter")
+def api_hunter():
+    import subprocess
+    from dotenv import dotenv_values
+
+    base_dir       = os.path.dirname(__file__)
+    state_file     = os.path.join(base_dir, "data", "shitcoin_state.json")
+    hunter_env     = os.path.join(base_dir, ".env.hunter")
+
+    # Config from .env.hunter (read-only, no env override)
+    cfg = dotenv_values(hunter_env)
+    config = {
+        "amount_usd":    float(cfg.get("SHITCOIN_AMOUNT_USD",   5)),
+        "max_positions": int(cfg.get("SHITCOIN_MAX_POSITIONS",   10)),
+        "take_profit":   float(cfg.get("SHITCOIN_TAKE_PROFIT",   50)),
+        "stop_loss":     float(cfg.get("SHITCOIN_STOP_LOSS",     25)),
+        "enabled":       cfg.get("SHITCOIN_ENABLED", "true").lower() == "true",
+        "dry_run":       cfg.get("DRY_RUN", "true").lower() == "true",
+        "wallet":        cfg.get("SOLANA_PUBLIC_KEY", ""),
+    }
+
+    # systemd status
+    try:
+        r = subprocess.run(
+            ["systemctl", "is-active", "shitcoin_hunter"],
+            capture_output=True, text=True, timeout=3,
+        )
+        running = r.stdout.strip() == "active"
+    except Exception:
+        running = None
+
+    # State file (positions + vol history written by hunter every cycle)
+    state = {}
+    if os.path.exists(state_file):
+        try:
+            with open(state_file) as f:
+                state = json.load(f)
+        except Exception:
+            pass
+
+    # Recent hunter trades from DB
+    try:
+        from database import get_session, Trade as TradeModel
+        with get_session() as s:
+            rows = (
+                s.query(TradeModel)
+                .filter(TradeModel.motivazione.like("%HUNTER%"))
+                .order_by(TradeModel.data.desc())
+                .limit(15)
+                .all()
+            )
+            hunter_trades = [{
+                "data":          r.data.isoformat() if r.data else None,
+                "token":         r.token,
+                "azione":        r.azione,
+                "importo_usdc":  float(r.importo_usdc or 0),
+                "prezzo_entrata":float(r.prezzo_entrata or 0),
+                "prezzo_uscita": float(r.prezzo_uscita or 0) if r.prezzo_uscita else None,
+                "risultato_pct": float(r.risultato_pct or 0) if r.risultato_pct else None,
+                "risultato_usdc":float(r.risultato_usdc or 0) if r.risultato_usdc else None,
+                "tx_hash":       r.tx_hash,
+            } for r in rows]
+    except Exception as e:
+        log.warning(f"hunter trades query error: {e}")
+        hunter_trades = []
+
+    return jsonify({
+        "config":        config,
+        "running":       running,
+        "positions":     state.get("positions", {}),
+        "recent_trades": hunter_trades,
+    })
+
+
 
 @app.route("/api/analisi", methods=["POST"])
 def api_analisi():
