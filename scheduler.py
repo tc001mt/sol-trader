@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 log = logging.getLogger(__name__)
 
-CYCLE_MINUTES = int(os.getenv("CYCLE_MINUTES", 15))
+CYCLE_MINUTES = int(os.getenv("SOL_TRADING_CYCLE_MINUTES", 15))
 
 # Minimum SOL threshold for executing purchases — never go below 0.009 SOL.
 # Covers: wSOL ATA rent (~0.002) + priority fee (~0.0005) + safety buffer.
@@ -21,8 +21,8 @@ _ultima_notifica_sol_basso: datetime | None = None
 # ── Telegram notifications ────────────────────────────────────────────────────────
 
 async def notifica(msg: str):
-    token   = os.getenv("TELEGRAM_BOT_TOKEN")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    token   = os.getenv("SOL_TRADING_TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("SOL_TRADING_TELEGRAM_CHAT_ID")
     if not token or not chat_id:
         return
     try:
@@ -105,7 +105,7 @@ async def controlla_take_profit(wallet: dict, prezzi: dict) -> list:
     Automatically sells tokens that have reached the take profit target.
     TAKE_PROFIT_PCT: env var (default 1.5%). Returns list of sold tokens.
     """
-    take_profit_pct = float(os.getenv("TAKE_PROFIT_PCT", "1.5"))
+    take_profit_pct = float(os.getenv("SOL_TRADING_TAKE_PROFIT_PCT", "1.5"))
     venduti = []
 
     try:
@@ -394,7 +394,7 @@ async def ciclo_trading():
                 for t in ultimi
             )
             if not comprato_recente:
-                scalp_max = float(os.getenv("SCALP_MAX_USDC", "15"))
+                scalp_max = float(os.getenv("SOL_TRADING_SCALP_MAX_USDC", "15"))
                 importo = max(1.0, round(min(usdc_balance * 0.15, scalp_max), 2))
                 log.warning(
                     f"⚡ SCALP MOMENTUM: RSI={rsi:.1f} MACD={macd_cross} "
@@ -405,7 +405,7 @@ async def ciclo_trading():
                     "token":           "SOL",
                     "importo_usdc":    importo,
                     "confidenza":      75,
-                    "motivazione":     f"Scalp momentum: MACD bullish, RSI={rsi:.1f}. Target take profit {os.getenv('TAKE_PROFIT_PCT','1.5')}%.",
+                    "motivazione":     f"Scalp momentum: MACD bullish, RSI={rsi:.1f}. Target take profit {os.getenv('SOL_TRADING_TAKE_PROFIT_PCT','1.5')}%.",
                     "livello_allerta": livello,
                     "sentiment_trump": sicurezza.get("sentiment_trump", "neutral"),
                     "sentiment_geo":   sicurezza.get("sentiment_geo", "neutral"),

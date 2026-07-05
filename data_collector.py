@@ -192,7 +192,7 @@ async def get_prezzi(tokens: list = None) -> dict:
     )
     
     headers = {}
-    api_key = os.getenv("COINGECKO_API_KEY")
+    api_key = os.getenv("SOL_TRADING_COINGECKO_API_KEY")
     if api_key:
         headers["x-cg-demo-api-key"] = api_key
 
@@ -246,7 +246,7 @@ async def get_indicatori(token: str = "SOL", giorni: int = 30) -> dict:
         return {}
 
     headers = {}
-    api_key = os.getenv("COINGECKO_API_KEY")
+    api_key = os.getenv("SOL_TRADING_COINGECKO_API_KEY")
     if api_key:
         headers["x-cg-demo-api-key"] = api_key
 
@@ -483,7 +483,7 @@ async def get_notizie_geo() -> list:
     1. NewsAPI if NEWSAPI_KEY available (more precise)
     2. Fallback: RSS BBC, Sky, Al Jazeera, NDTV
     """
-    api_key = os.getenv("NEWSAPI_KEY")
+    api_key = os.getenv("SOL_TRADING_NEWSAPI_KEY")
     if api_key:
         try:
             query = (
@@ -542,7 +542,7 @@ async def get_trump_tweets() -> list:
     1. Twitter API if TWITTER_BEARER_TOKEN available
     2. Fallback: RSS crypto + geo filtered by Trump keywords
     """
-    bearer = os.getenv("TWITTER_BEARER_TOKEN")
+    bearer = os.getenv("SOL_TRADING_TWITTER_BEARER_TOKEN")
     if bearer:
         return await _trump_via_twitter_api(bearer)
     return await _trump_via_rss()
@@ -601,7 +601,7 @@ async def _trump_via_rss() -> list:
 
 async def get_top_solana_tokens(limit: int = 10) -> list:
     headers = {}
-    api_key = os.getenv("COINGECKO_API_KEY")
+    api_key = os.getenv("SOL_TRADING_COINGECKO_API_KEY")
     if api_key:
         headers["x-cg-demo-api-key"] = api_key
 
@@ -712,7 +712,7 @@ async def raccogli_tutto(token_list: list = None, pubkey: str = None) -> dict:
     sentiment_geo    = {}
     sentiment_trump  = {}
 
-    if os.getenv("ENABLE_SENTIMENT", "false").lower() == "true":
+    if os.getenv("SOL_TRADING_ENABLE_SENTIMENT", "false").lower() == "true":
         is_crypto_ok = not isinstance(notizie_crypto, Exception)
         is_geo_ok    = not isinstance(notizie_geo, Exception)
         is_trump_ok  = not isinstance(trump_tweets, Exception)

@@ -21,8 +21,9 @@ tokens by volume, looks for volume spikes plus positive short-term momentum,
 and buys whatever a Claude/Gemini check flags as the strongest candidate —
 with automated take-profit/stop-loss exits.
 
-It has its own wallet, its own `.env.hunter` config, and its own systemd
-service — it shares only the Jupiter swap pattern with the main bot. It is
+It has its own wallet, its own `SHITCOIN_HUNTER_*` config namespace in `.env`,
+and its own systemd service — it shares only the Jupiter swap pattern and the
+database with the main bot. It is
 the least mature part of this repo. **Read the Disclaimer below before even
 running it in `DRY_RUN`, let alone with real funds.**
 
@@ -65,17 +66,31 @@ python app.py        # Start dashboard (port 5000)
 
 ## Environment variables
 
+A single `.env` file configures both the main bot and Shitcoin Hunter — each bot's
+variables are namespaced with its own prefix (`SOL_TRADING_` / `SHITCOIN_HUNTER_`)
+so the two never collide, plus a small set of genuinely shared infra settings
+(database, dashboard secret). See `.env.example` for the full, commented list.
+
 ```
-SOLANA_PRIVATE_KEY=      # Base58 or JSON array private key
-SOLANA_RPC=              # RPC endpoint (default: mainnet-beta)
-OPENROUTER_API_KEY=      # Required for AI decisions
-OPENROUTER_MODEL_MAIN=   # Default: anthropic/claude-sonnet-4-5
-OPENROUTER_MODEL_FAST=   # Default: google/gemini-2.5-flash-lite
-COINGECKO_API_KEY=       # Optional
-NEWSAPI_KEY=             # Optional, for additional news sources
-TELEGRAM_BOT_TOKEN=      # Optional, for trade notifications
-TELEGRAM_CHAT_ID=        # Optional
-DRY_RUN=true             # Set to false to enable real trades
+# Shared
+DB_USER= DB_PASSWORD= DB_HOST= DB_PORT= DB_NAME=
+FLASK_SECRET_KEY=
+
+# Main bot
+SOL_TRADING_SOLANA_PRIVATE_KEY=   # Base58 or JSON array private key
+SOL_TRADING_SOLANA_RPC=           # RPC endpoint (default: mainnet-beta)
+SOL_TRADING_OPENROUTER_API_KEY=   # Required for AI decisions
+SOL_TRADING_OPENROUTER_MODEL=     # Default: anthropic/claude-sonnet-4-5
+SOL_TRADING_OPENROUTER_MODEL_FAST=# Default: google/gemini-2.5-flash-lite
+SOL_TRADING_COINGECKO_API_KEY=    # Optional
+SOL_TRADING_NEWSAPI_KEY=          # Optional, for additional news sources
+SOL_TRADING_TELEGRAM_BOT_TOKEN=   # Optional, for trade notifications
+SOL_TRADING_TELEGRAM_CHAT_ID=     # Optional
+SOL_TRADING_DRY_RUN=true          # Set to false to enable real trades
+
+# Shitcoin Hunter (separate bot, separate wallet — see its own section below)
+SHITCOIN_HUNTER_SOLANA_PRIVATE_KEY=
+SHITCOIN_HUNTER_DRY_RUN=true
 ```
 
 ## Safety features

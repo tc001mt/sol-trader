@@ -42,8 +42,8 @@ def _translate_motivo(motivo: str) -> dict:
     """Translates the reason into IT, EN, and RU via OpenRouter (sync, best-effort)."""
     try:
         import httpx
-        api_key = os.getenv("OPENROUTER_API_KEY")
-        model   = os.getenv("OPENROUTER_MODEL_FAST", "google/gemini-2.5-flash-lite")
+        api_key = os.getenv("SOL_TRADING_OPENROUTER_API_KEY")
+        model   = os.getenv("SOL_TRADING_OPENROUTER_MODEL_FAST", "google/gemini-2.5-flash-lite")
         if not api_key or not motivo:
             return {}
         prompt = (
@@ -285,22 +285,18 @@ def api_memoria():
 
 @app.route("/api/hunter")
 def api_hunter():
-    from dotenv import dotenv_values
-
     base_dir       = os.path.dirname(__file__)
     state_file     = os.path.join(base_dir, "data", "shitcoin_state.json")
-    hunter_env     = os.path.join(base_dir, ".env.hunter")
 
-    # Config from .env.hunter (read-only, no env override)
-    cfg = dotenv_values(hunter_env)
+    # Config from the shared .env (SHITCOIN_HUNTER_* namespace), read-only
     config = {
-        "amount_usd":    float(cfg.get("SHITCOIN_AMOUNT_USD",   5)),
-        "max_positions": int(cfg.get("SHITCOIN_MAX_POSITIONS",   10)),
-        "take_profit":   float(cfg.get("SHITCOIN_TAKE_PROFIT",   50)),
-        "stop_loss":     float(cfg.get("SHITCOIN_STOP_LOSS",     25)),
-        "enabled":       cfg.get("SHITCOIN_ENABLED", "true").lower() == "true",
-        "dry_run":       cfg.get("DRY_RUN", "true").lower() == "true",
-        "wallet":        cfg.get("SOLANA_PUBLIC_KEY", ""),
+        "amount_usd":    float(os.getenv("SHITCOIN_HUNTER_AMOUNT_USD",   5)),
+        "max_positions": int(os.getenv("SHITCOIN_HUNTER_MAX_POSITIONS",   10)),
+        "take_profit":   float(os.getenv("SHITCOIN_HUNTER_TAKE_PROFIT",   50)),
+        "stop_loss":     float(os.getenv("SHITCOIN_HUNTER_STOP_LOSS",     25)),
+        "enabled":       os.getenv("SHITCOIN_HUNTER_ENABLED", "true").lower() == "true",
+        "dry_run":       os.getenv("SHITCOIN_HUNTER_DRY_RUN", "true").lower() == "true",
+        "wallet":        os.getenv("SHITCOIN_HUNTER_SOLANA_PUBLIC_KEY", ""),
     }
 
     running = _service_running("shitcoin_hunter")

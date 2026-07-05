@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
 shitcoin_hunter.py — Solana memecoin momentum hunter
-Standalone service, independent from the main bot (own wallet, own .env.hunter).
+Standalone service, independent from the main bot (own wallet, own SHITCOIN_HUNTER_* env namespace).
 Experimental — see the Disclaimer in README.md before running with real funds.
 
 5-minute cycle: discovers top 100 Solana tokens by volume dynamically,
 detects volume spikes, uses AI buy signal, automated TP/SL exits.
-Config via .env.hunter: SHITCOIN_AMOUNT_USD, SHITCOIN_MAX_POSITIONS,
-                        SHITCOIN_TAKE_PROFIT, SHITCOIN_STOP_LOSS
+Config via .env: SHITCOIN_HUNTER_AMOUNT_USD, SHITCOIN_HUNTER_MAX_POSITIONS,
+                 SHITCOIN_HUNTER_TAKE_PROFIT, SHITCOIN_HUNTER_STOP_LOSS
 """
 
 import os
@@ -22,15 +22,12 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
 
 _BASE_DIR = os.path.dirname(__file__)
-load_dotenv(os.path.join(_BASE_DIR, ".env"))                          # shared settings
-load_dotenv(os.path.join(_BASE_DIR, ".env.hunter"), override=True)   # hunter overrides
+load_dotenv(os.path.join(_BASE_DIR, ".env"))
 
-# Captured right here, right after the override above — this is the only moment
-# os.environ["SOLANA_PRIVATE_KEY"] is guaranteed to hold the hunter's own key.
-# When app.py (main dashboard) imports this module, this line runs once and the
-# hunter keypair below stays correct even after trader.py or anything else later
-# reads/mutates os.environ in the same process.
-_HUNTER_PRIVATE_KEY_RAW = os.environ.get("SOLANA_PRIVATE_KEY", "")
+# Captured once at import time, like trader.py's own keypair — not re-read via
+# os.getenv() on every call, so it stays correct even if something else in the
+# same process mutates os.environ later.
+_HUNTER_PRIVATE_KEY_RAW = os.environ.get("SHITCOIN_HUNTER_SOLANA_PRIVATE_KEY", "")
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 # Scoped to the "hunter" logger only (not logging.basicConfig, which would
@@ -54,19 +51,19 @@ if not log.handlers:
     log.propagate = False
 
 # ── Config ────────────────────────────────────────────────────────────────────
-AMOUNT_USD      = float(os.getenv("SHITCOIN_AMOUNT_USD",   "5"))
-MAX_POSITIONS   = int(os.getenv("SHITCOIN_MAX_POSITIONS",  "10"))
-TAKE_PROFIT_PCT = float(os.getenv("SHITCOIN_TAKE_PROFIT",  "50"))
-STOP_LOSS_PCT   = float(os.getenv("SHITCOIN_STOP_LOSS",    "25"))
-MONITOR_SECONDS = int(os.getenv("SHITCOIN_MONITOR_SECONDS", "20"))
-BUY_FAIL_COOLDOWN_HOURS = float(os.getenv("SHITCOIN_BUY_FAIL_COOLDOWN_HOURS", "4"))
-ENABLED         = os.getenv("SHITCOIN_ENABLED", "true").lower() == "true"
-DRY_RUN         = os.getenv("DRY_RUN",          "true").lower() == "true"
+AMOUNT_USD      = float(os.getenv("SHITCOIN_HUNTER_AMOUNT_USD",   "5"))
+MAX_POSITIONS   = int(os.getenv("SHITCOIN_HUNTER_MAX_POSITIONS",  "10"))
+TAKE_PROFIT_PCT = float(os.getenv("SHITCOIN_HUNTER_TAKE_PROFIT",  "50"))
+STOP_LOSS_PCT   = float(os.getenv("SHITCOIN_HUNTER_STOP_LOSS",    "25"))
+MONITOR_SECONDS = int(os.getenv("SHITCOIN_HUNTER_MONITOR_SECONDS", "20"))
+BUY_FAIL_COOLDOWN_HOURS = float(os.getenv("SHITCOIN_HUNTER_BUY_FAIL_COOLDOWN_HOURS", "4"))
+ENABLED         = os.getenv("SHITCOIN_HUNTER_ENABLED", "true").lower() == "true"
+DRY_RUN         = os.getenv("SHITCOIN_HUNTER_DRY_RUN",  "true").lower() == "true"
 
-RPC_URL          = os.getenv("SOLANA_RPC", "https://api.mainnet-beta.solana.com")
-OPENROUTER_KEY   = os.getenv("SHITCOIN_OPENROUTER_KEY") or os.getenv("OPENROUTER_API_KEY")
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL_FAST", "google/gemini-2.5-flash-lite")
-COINGECKO_KEY    = os.getenv("COINGECKO_API_KEY")
+RPC_URL          = os.getenv("SHITCOIN_HUNTER_SOLANA_RPC", "https://api.mainnet-beta.solana.com")
+OPENROUTER_KEY   = os.getenv("SHITCOIN_HUNTER_OPENROUTER_API_KEY") or os.getenv("SOL_TRADING_OPENROUTER_API_KEY")
+OPENROUTER_MODEL = os.getenv("SHITCOIN_HUNTER_OPENROUTER_MODEL_FAST", "google/gemini-2.5-flash-lite")
+COINGECKO_KEY    = os.getenv("SHITCOIN_HUNTER_COINGECKO_API_KEY")
 
 JUPITER_ORDER_URL = "https://api.jup.ag/swap/v2/order"   # v2: quote+swap in one call
 JUPITER_PRICE_URL = "https://api.jup.ag/price/v3"        # real-time exit price, same source as swap
@@ -181,8 +178,8 @@ def save_state(state: dict):
 # ── Telegram ──────────────────────────────────────────────────────────────────
 
 async def notifica(msg: str):
-    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-    chat_id   = os.getenv("TELEGRAM_CHAT_ID")
+    bot_token = os.getenv("SHITCOIN_HUNTER_TELEGRAM_BOT_TOKEN")
+    chat_id   = os.getenv("SHITCOIN_HUNTER_TELEGRAM_CHAT_ID")
     if not bot_token or not chat_id:
         return
     try:
@@ -383,7 +380,7 @@ async def _swap(mint_in: str, mint_out: str, amount_raw: int) -> dict:
         "broadcastFeeType":    "maxCap",
     }
     params["referralAccount"] = JUPITER_REFERRAL_ACCOUNT
-    params["referralFee"]     = int(os.getenv("JUPITER_REFERRAL_FEE_BPS", "50"))
+    params["referralFee"]     = int(os.getenv("SHITCOIN_HUNTER_JUPITER_REFERRAL_FEE_BPS", "50"))
 
     try:
         async with httpx.AsyncClient(timeout=20) as c:

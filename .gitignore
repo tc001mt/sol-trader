@@ -34,9 +34,9 @@ build/
 *.tmp
 
 # shitcoin_hunter.py is published (see README Disclaimer); its real systemd unit
-# file and env still reveal server-specific paths/user/secrets, so those stay out.
+# file reveals server-specific paths/user, so it stays out (config now lives in
+# the single .env, under the SHITCOIN_HUNTER_* namespace — no separate file).
 shitcoin_hunter.service
-.env.hunter
 
 # IDE
 .vscode/

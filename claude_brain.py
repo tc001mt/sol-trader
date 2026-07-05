@@ -16,8 +16,8 @@ log = logging.getLogger(__name__)
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-MODEL_MAIN = os.getenv("OPENROUTER_MODEL", "anthropic/claude-haiku-4-5")
-MODEL_FAST = os.getenv("OPENROUTER_MODEL_FAST", "google/gemini-2.5-flash-lite")
+MODEL_MAIN = os.getenv("SOL_TRADING_OPENROUTER_MODEL", "anthropic/claude-haiku-4-5")
+MODEL_FAST = os.getenv("SOL_TRADING_OPENROUTER_MODEL_FAST", "google/gemini-2.5-flash-lite")
 
 # ── System prompt ─────────────────────────────────────────────────────────────
 
@@ -160,7 +160,7 @@ async def chiedi_claude(
     fast=True  → MODEL_FAST (cheap, for safety checks)
     fast=False → MODEL_MAIN (reliable, for trade decisions)
     """
-    api_key = os.getenv("OPENROUTER_API_KEY")
+    api_key = os.getenv("SOL_TRADING_OPENROUTER_API_KEY")
     if not api_key:
         raise ValueError("OPENROUTER_API_KEY missing")
 

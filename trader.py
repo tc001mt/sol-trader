@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 JUPITER_QUOTE_URL = "https://api.jup.ag/swap/v1/quote"   # v1, kept for get_quote()
 JUPITER_SWAP_URL  = "https://api.jup.ag/swap/v1/swap"    # v1, kept for reference
 JUPITER_ORDER_URL = "https://api.jup.ag/swap/v2/order"   # v2: quote+swap in one call
-RPC_URL = os.getenv("SOLANA_RPC", "https://api.mainnet-beta.solana.com")
+RPC_URL = os.getenv("SOL_TRADING_SOLANA_RPC", "https://api.mainnet-beta.solana.com")
 
 # Jupiter Referral Program account (referral.jup.ag/dashboard-ultra) — earns a share
 # of swap fees. Must be registered under project DkiqsTrw1u1bYFumumC7sCG2S8K25qc2vemJFHyW2wJc
@@ -39,14 +39,14 @@ DECIMALS = {
     "BONK": 5, "WIF": 6, "PENGU": 6,
 }
 
-DRY_RUN = os.getenv("DRY_RUN", "true").lower() == "true"
+DRY_RUN = os.getenv("SOL_TRADING_DRY_RUN", "true").lower() == "true"
 
 def _load_keypair_from_env():
     try:
         from solders.keypair import Keypair
-        raw = os.getenv("SOLANA_PRIVATE_KEY", "")
+        raw = os.getenv("SOL_TRADING_SOLANA_PRIVATE_KEY", "")
         if not raw:
-            raise ValueError("SOLANA_PRIVATE_KEY not set")
+            raise ValueError("SOL_TRADING_SOLANA_PRIVATE_KEY not set")
         if raw.startswith("["):
             secret = bytes(json.loads(raw))
             return Keypair.from_bytes(secret)
@@ -56,10 +56,9 @@ def _load_keypair_from_env():
         log.error(f"Keypair error: {e}")
         return None
 
-# Loaded once at import time — must NOT be re-read via os.getenv() on every call.
-# Other modules imported later in the same process (e.g. shitcoin_hunter, which
-# loads .env.hunter with override=True) mutate os.environ globally; re-reading
-# here would silently swap in the wrong wallet's key mid-process.
+# Loaded once at import time — must NOT be re-read via os.getenv() on every call,
+# so that mutating os.environ later in the process (e.g. another module doing its
+# own load_dotenv with override=True) can never swap in the wrong wallet's key.
 _KEYPAIR = _load_keypair_from_env()
 
 def load_keypair():
@@ -189,7 +188,7 @@ async def esegui_swap(token_in: str, token_out: str, amount_in: float, slippage_
         "broadcastFeeType":    "maxCap",
     }
     params["referralAccount"] = JUPITER_REFERRAL_ACCOUNT
-    params["referralFee"]     = int(os.getenv("JUPITER_REFERRAL_FEE_BPS", "50"))
+    params["referralFee"]     = int(os.getenv("SOL_TRADING_JUPITER_REFERRAL_FEE_BPS", "50"))
 
     try:
         async with httpx.AsyncClient(timeout=20) as c:
