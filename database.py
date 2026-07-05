@@ -346,6 +346,7 @@ def _trade_to_dict(t: Trade) -> dict:
         "risultato_pct":  float(t.risultato_pct or 0),
         "risultato_usdc": float(t.risultato_usdc or 0),
         "motivazione":    t.motivazione,
+        "bot":            "hunter" if t.motivazione and "HUNTER" in t.motivazione else "main",
         "livello_allerta":t.livello_allerta,
         "confidenza":     t.confidenza,
         "fear_greed":     t.fear_greed,

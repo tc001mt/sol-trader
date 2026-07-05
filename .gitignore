@@ -33,8 +33,8 @@ build/
 *.bak
 *.tmp
 
-# Private services (not published)
-shitcoin_hunter.py
+# shitcoin_hunter.py is published (see README Disclaimer); its real systemd unit
+# file and env still reveal server-specific paths/user/secrets, so those stay out.
 shitcoin_hunter.service
 .env.hunter
 

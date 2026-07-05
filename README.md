@@ -13,6 +13,19 @@ An autonomous trading bot for Solana-based tokens, powered by Claude AI and depl
 - **Dashboard**: Real-time web UI showing prices, wallet, trades, indicators, and fear/greed index
 - **Learning rules**: Claude proposes weekly rule updates based on trade history — requires human approval before activation
 
+## Shitcoin Hunter (separate, experimental bot)
+
+`shitcoin_hunter.py` is a second, fully independent bot included in this repo:
+a 5-minute momentum scanner that dynamically discovers the top 100 Solana
+tokens by volume, looks for volume spikes plus positive short-term momentum,
+and buys whatever a Claude/Gemini check flags as the strongest candidate —
+with automated take-profit/stop-loss exits.
+
+It has its own wallet, its own `.env.hunter` config, and its own systemd
+service — it shares only the Jupiter swap pattern with the main bot. It is
+the least mature part of this repo. **Read the Disclaimer below before even
+running it in `DRY_RUN`, let alone with real funds.**
+
 ## Architecture
 
 ```
@@ -169,18 +182,20 @@ crontab -e
 
 ## Disclaimer
 
-**Use at your own risk.**
+**Use at your own risk. We accept no responsibility whatsoever — for either bot in this repo.**
 
-This software is provided for educational and experimental purposes only. By using SOL Trader you acknowledge and accept the following:
+This project — the main SOL Trader bot **and** Shitcoin Hunter — is published purely
+so other people can read the code, run it, comment on it, and suggest improvements.
+It is **not published as a recommendation to use it**, and especially not with real money.
 
 - **No financial advice.** Nothing in this project constitutes financial, investment, or trading advice.
-- **No guarantee of profit.** Past behavior of the bot does not guarantee future results. Cryptocurrency markets are highly volatile.
-- **Risk of loss.** You may lose part or all of the funds you allocate to this bot. Never use money you cannot afford to lose.
-- **No liability.** The authors and contributors accept no responsibility for any financial losses, missed trades, technical malfunctions, API outages, on-chain errors, or any other damage arising from the use of this software.
-- **No uptime guarantee.** The bot may stop working at any time due to changes in external APIs (Jupiter, CoinGecko, OpenRouter, Binance), network issues, or software bugs.
-- **Always test first.** Run with `DRY_RUN=true` until you fully understand the system's behavior.
+- **Never "done," and possibly never will be.** Both bots are an ongoing experiment, not a finished or validated product. Nobody can predict what the market will do next, no matter how many rules or AI models sit on top of the decision. Treat everything here as a work in progress, indefinitely.
+- **Test in `DRY_RUN=true`, and strongly consider staying there.** This isn't a formality — it's the intended way to run this project. Live trading is offered as an option for people who fully understand and accept the risk, not as the goal.
+- **Risk of total loss.** If you set `DRY_RUN=false`, you may lose part or all of the funds in the connected wallet(s) — through bad trades, bugs, API failures, or on-chain errors. Never use money you cannot afford to lose.
+- **No liability, no exceptions.** The authors and contributors accept no responsibility for any financial losses, missed trades, technical malfunctions, API outages, on-chain errors, or any other damage arising from running this software, in `DRY_RUN` or live, on either bot.
+- **No uptime guarantee.** Either bot may stop working at any time due to changes in external APIs (Jupiter, CoinGecko, OpenRouter, Binance), network issues, or software bugs.
 
-You are solely responsible for your trading decisions and any funds you put at risk.
+If you choose to run either bot with real funds, that is entirely your own decision — you are solely responsible for it and for any funds you put at risk.
 
 ---
 
