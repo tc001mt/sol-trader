@@ -262,6 +262,25 @@
   button.warn    { background: var(--warn);   color: var(--bg); }
   button.ghost   { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
 
+  /* Wallet header: status dot + address + copy */
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--dim);
+    flex-shrink: 0;
+  }
+  .copy-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 2px;
+    cursor: pointer;
+    line-height: 1.6;
+  }
+  .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+
   /* Log box */
   .log-box {
     background: var(--bg);
@@ -380,7 +399,11 @@
 <div class="card" style="margin-bottom:16px">
   <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
     <span>🦟 Shitcoin Hunter Wallet</span>
-    <span id="hunter-status-badge" style="font-size:11px"></span>
+    <span style="display:flex;align-items:center;gap:6px">
+      <span class="status-dot" id="hunter-status-dot"></span>
+      <span style="font-size:10px;color:var(--dim)" id="hunter-pubkey">—</span>
+      <button class="copy-btn" onclick="copyWallet('hunter', this)" title="Copy wallet address">⧉</button>
+    </span>
   </div>
 
   <!-- Config row -->
@@ -389,7 +412,6 @@
     <span>📦 <span id="h-pos-open">—</span>/<span id="h-pos-max">—</span> positions</span>
     <span>🎯 TP <span id="h-tp">—</span>%</span>
     <span>🛑 SL <span id="h-sl">—</span>%</span>
-    <span style="font-family:monospace;color:var(--accent)" id="h-wallet">—</span>
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
@@ -423,7 +445,11 @@
 <div class="card" style="margin-bottom:16px">
   <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
     <span>💰 Sol Trader Wallet</span>
-    <span style="font-size:10px;color:var(--dim)" id="wallet-pubkey">—</span>
+    <span style="display:flex;align-items:center;gap:6px">
+      <span class="status-dot" id="wallet-status-dot"></span>
+      <span style="font-size:10px;color:var(--dim)" id="wallet-pubkey">—</span>
+      <button class="copy-btn" onclick="copyWallet('main', this)" title="Copy wallet address">⧉</button>
+    </span>
   </div>
   <div id="wallet-tokens-list" style="display:flex;gap:0;flex-direction:column"></div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
@@ -522,9 +548,30 @@
 // ── Fetch helpers ─────────────────────────────────────────────────────────────
 
 let _totaleBot = 0, _totaleHunter = 0;
+let _walletPubkeyFull = '', _hunterPubkeyFull = '';
 function updateTitle() {
   const combined = _totaleBot + _totaleHunter;
   document.title = combined > 0 ? 'SOL Trader — $' + combined.toFixed(2) : 'SOL Trader';
+}
+
+function setStatusDot(elId, running) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.style.background = running === true ? 'var(--accent)' : running === false ? 'var(--danger)' : 'var(--dim)';
+  el.title = running === true ? 'Live' : running === false ? 'Stopped' : 'Unknown';
+}
+
+async function copyWallet(which, btn) {
+  const addr = which === 'main' ? _walletPubkeyFull : _hunterPubkeyFull;
+  if (!addr) return;
+  try {
+    await navigator.clipboard.writeText(addr);
+    const orig = btn.textContent;
+    btn.textContent = '✓';
+    setTimeout(() => { btn.textContent = orig; }, 1200);
+  } catch (e) {
+    console.error('Copy failed:', e);
+  }
 }
 
 async function get(url) {
@@ -631,7 +678,9 @@ async function refreshStatus() {
     });
 
     const w = d.wallet || {};
+    _walletPubkeyFull = w.pubkey || '';
     document.getElementById('wallet-pubkey').textContent = w.pubkey ? w.pubkey.slice(0,8)+'...'+w.pubkey.slice(-6) : '—';
+    setStatusDot('wallet-status-dot', d.running);
 
     // Dynamic token list
     const tokens = d.wallet_tokens || [];
@@ -757,11 +806,7 @@ async function refreshHunter() {
     const d = await get('/api/hunter');
     const cfg = d.config || {};
 
-    // Status badge
-    const badge = document.getElementById('hunter-status-badge');
-    if (d.running === true)       { badge.innerHTML = '<span style="color:var(--green)">● LIVE</span>'; }
-    else if (d.running === false) { badge.innerHTML = '<span style="color:var(--red)">● STOPPED</span>'; }
-    else                          { badge.innerHTML = '<span style="color:var(--dim)">● UNKNOWN</span>'; }
+    setStatusDot('hunter-status-dot', d.running);
 
     // Config
     document.getElementById('h-amount').textContent  = '$' + cfg.amount_usd;
@@ -769,7 +814,8 @@ async function refreshHunter() {
     document.getElementById('h-tp').textContent      = cfg.take_profit;
     document.getElementById('h-sl').textContent      = cfg.stop_loss;
     const w = cfg.wallet || '';
-    document.getElementById('h-wallet').textContent  = w ? w.slice(0,6)+'...'+w.slice(-4) : '—';
+    _hunterPubkeyFull = w;
+    document.getElementById('hunter-pubkey').textContent = w ? w.slice(0,6)+'...'+w.slice(-4) : '—';
 
     // Open positions — keyed by symbol so they can be nested under their wallet token row
     const positions = d.positions || {};

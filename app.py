@@ -25,6 +25,17 @@ _WALLET_TOKEN_ORDER = {"SOL": 0, "USDC": 1, "USDT": 2}
 def _wallet_sort_key(t):
     return (_WALLET_TOKEN_ORDER.get(t["token"], 99), t["usd"] is None, -(t["usd"] or 0))
 
+def _service_running(unit: str):
+    import subprocess
+    try:
+        r = subprocess.run(
+            ["/usr/bin/systemctl", "is-active", unit],
+            capture_output=True, text=True, timeout=3,
+        )
+        return r.stdout.strip() == "active"
+    except Exception:
+        return None
+
 _MARKET_CACHE_FILE = os.path.join(os.path.dirname(__file__), "data", "last_market_status.json")
 
 def _translate_motivo(motivo: str) -> dict:
@@ -178,6 +189,7 @@ def api_status():
             "wallet":        wallet,
             "wallet_tokens": wallet_tokens,
             "wallet_totale": round(totale_usd, 2),
+            "running":       _service_running("mtelani_trading_scheduler.service"),
             "notizie_crypto":nc[:6],
             "notizie_geo":   ng[:6],
             "trump_tweets":  trump[:3],
@@ -273,7 +285,6 @@ def api_memoria():
 
 @app.route("/api/hunter")
 def api_hunter():
-    import subprocess
     from dotenv import dotenv_values
 
     base_dir       = os.path.dirname(__file__)
@@ -292,15 +303,7 @@ def api_hunter():
         "wallet":        cfg.get("SOLANA_PUBLIC_KEY", ""),
     }
 
-    # systemd status
-    try:
-        r = subprocess.run(
-            ["/usr/bin/systemctl", "is-active", "shitcoin_hunter"],
-            capture_output=True, text=True, timeout=3,
-        )
-        running = r.stdout.strip() == "active"
-    except Exception:
-        running = None
+    running = _service_running("shitcoin_hunter")
 
     # State file (positions + vol history written by hunter every cycle)
     state = {}
