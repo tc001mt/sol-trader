@@ -15,6 +15,10 @@ JUPITER_SWAP_URL  = "https://api.jup.ag/swap/v1/swap"    # v1, kept for referenc
 JUPITER_ORDER_URL = "https://api.jup.ag/swap/v2/order"   # v2: quote+swap in one call
 RPC_URL = os.getenv("SOLANA_RPC", "https://api.mainnet-beta.solana.com")
 
+# Jupiter Referral Program account (referral.jup.ag) — earns a share of swap fees.
+# Verified on-chain: owned by the Referral Program (REFER4ZgmyYx9c6He5XfaTMiGfdLwRnkV4RPp9t9iF3).
+JUPITER_REFERRAL_ACCOUNT = "FeK4ZEr7nHEPGccWziq2WomiXdA5gDLdA1EGk2UCHwv8"
+
 MINTS = {
     "USDC": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
     "USDT": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
@@ -182,11 +186,11 @@ async def esegui_swap(token_in: str, token_out: str, amount_in: float, slippage_
         "priorityFeeLamports": 500_000,
         "broadcastFeeType":    "maxCap",
     }
-    ref_account = os.getenv("JUPITER_REFERRAL_ACCOUNT", "")
-    ref_fee_bps = int(os.getenv("JUPITER_REFERRAL_FEE_BPS", "50"))
-    if ref_account:
-        params["referralAccount"] = ref_account
-        params["referralFee"]     = ref_fee_bps
+    # NOT YET ENABLED: JUPITER_REFERRAL_ACCOUNT exists on-chain (verified) but Jupiter
+    # rejects every order with it ("referralAccount is initialized under REFER4Z...
+    # for project Dkiq..." error) — the account needs an extra setup step on
+    # referral.jup.ag tied to this API project before it can be sent on real swaps.
+    # Do not add referralAccount/referralFee to params until that's confirmed working.
 
     try:
         async with httpx.AsyncClient(timeout=20) as c:
