@@ -416,12 +416,18 @@ async def _swap(mint_in: str, mint_out: str, amount_raw: int) -> dict:
     signed = VersionedTransaction.populate(tx.message, [sig])
     tx_b64 = base64.b64encode(bytes(signed)).decode()
 
+    # maxRetries=0: the RPC node's own built-in rebroadcast is very limited
+    # (a handful of attempts over a few seconds) — we rebroadcast ourselves
+    # below, for the whole blockhash validity window, since a single narrow
+    # burst of retries is not enough during any real network congestion.
+    send_params = {"encoding": "base64", "skipPreflight": True, "maxRetries": 0}
+
     try:
         async with httpx.AsyncClient(timeout=60) as c:
             r = await c.post(RPC_URL, json={
                 "jsonrpc": "2.0", "id": 1,
                 "method":  "sendTransaction",
-                "params":  [tx_b64, {"encoding": "base64", "skipPreflight": True, "maxRetries": 3}],
+                "params":  [tx_b64, send_params],
             })
             rpc_resp = r.json()
     except Exception as e:
@@ -433,8 +439,23 @@ async def _swap(mint_in: str, mint_out: str, amount_raw: int) -> dict:
     txid = rpc_resp["result"]
     log.info(f"Tx sent: {txid}, polling...")
 
-    for _ in range(30):
+    for i in range(30):
         await asyncio.sleep(2)
+
+        # Rebroadcast every ~6s (idempotent — Solana dedupes by signature) so the
+        # tx keeps getting a chance to land for the full ~60-90s blockhash window,
+        # instead of only the first few seconds after the initial send.
+        if i > 0 and i % 3 == 0:
+            try:
+                async with httpx.AsyncClient(timeout=10) as c:
+                    await c.post(RPC_URL, json={
+                        "jsonrpc": "2.0", "id": 1,
+                        "method":  "sendTransaction",
+                        "params":  [tx_b64, send_params],
+                    })
+            except Exception:
+                pass
+
         try:
             async with httpx.AsyncClient(timeout=10) as c:
                 r = await c.post(RPC_URL, json={
