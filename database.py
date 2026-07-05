@@ -2,7 +2,7 @@
 import os
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from contextlib import contextmanager
 from dotenv import load_dotenv
 from sqlalchemy import (
@@ -182,6 +182,39 @@ def get_performance_per_token() -> list:
             ORDER BY media_pct DESC
         """)).mappings().all()
         return [dict(r) for r in rows]
+
+def get_performance_recente(token: str, ore: int = 24, min_trade: int = 3) -> dict:
+    """
+    Sell performance for a token in the last `ore` hours — for the circuit breaker
+    guard in scheduler.py. Time-windowed (not last-N-trades): a token blocked by
+    a losing streak self-unblocks as those trades age past the window, no
+    separate cooldown timer needed.
+    """
+    with get_session() as s:
+        since = datetime.now(timezone.utc) - timedelta(hours=ore)
+        row = s.execute(text("""
+            SELECT
+                COUNT(*)                                        AS n_trade,
+                ROUND(
+                    SUM(CASE WHEN risultato_pct > 0 THEN 1 ELSE 0 END)
+                    * 100.0 / NULLIF(COUNT(*),0), 1
+                )                                                AS win_rate,
+                ROUND(SUM(risultato_usdc)::numeric, 4)          AS profit_usdc
+            FROM trades
+            WHERE eseguito = true
+              AND azione = 'vendi'
+              AND token = :token
+              AND data >= :since
+        """), {"token": token, "since": since}).mappings().first()
+
+        n_trade = row["n_trade"] or 0
+        if n_trade < min_trade:
+            return {"n_trade": n_trade, "win_rate": None, "profit_usdc": 0.0, "blocked": False}
+
+        win_rate    = float(row["win_rate"] or 0)
+        profit_usdc = float(row["profit_usdc"] or 0)
+        blocked = win_rate < 40 or profit_usdc < -1.0
+        return {"n_trade": n_trade, "win_rate": win_rate, "profit_usdc": profit_usdc, "blocked": blocked}
 
 # ── CRUD regole ───────────────────────────────────────────────────────────────
 

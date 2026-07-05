@@ -466,6 +466,29 @@ async def ciclo_trading():
                 }
                 result["decisione"] = decisione
 
+        # CIRCUIT BREAKER: pause a token after a confirmed losing streak
+        if decisione.get("azione") == "compra":
+            token_da_comprare = decisione.get("token", "SOL")
+            from database import get_performance_recente
+            perf = get_performance_recente(token_da_comprare, ore=24, min_trade=3)
+            if perf["blocked"]:
+                log.warning(
+                    f"⚡ CIRCUIT BREAKER: {token_da_comprare} buy blocked — "
+                    f"win_rate={perf['win_rate']}% profit=${perf['profit_usdc']} "
+                    f"over last {perf['n_trade']} sells (24h)"
+                )
+                decisione = {
+                    "azione":          "aspetta",
+                    "token":           None,
+                    "importo_usdc":    0,
+                    "confidenza":      0,
+                    "motivazione":     f"Circuit breaker: {token_da_comprare} win_rate={perf['win_rate']}% profit=${perf['profit_usdc']} over last {perf['n_trade']} sells (24h). Pausing.",
+                    "livello_allerta": livello,
+                    "sentiment_trump": sicurezza.get("sentiment_trump", "neutral"),
+                    "sentiment_geo":   sicurezza.get("sentiment_geo", "neutral"),
+                }
+                result["decisione"] = decisione
+
         # 4. Execute if confidence is sufficient
         min_conf = regole.get("confidenza_minima", 60)
         azione   = decisione.get("azione")
