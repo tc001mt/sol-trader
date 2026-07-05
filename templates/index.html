@@ -403,7 +403,6 @@
       <span class="status-dot" id="hunter-status-dot"></span>
       <span style="font-size:10px;color:var(--dim)" id="hunter-pubkey">—</span>
       <button class="copy-btn" onclick="copyWallet('hunter', this)" title="Copy wallet address">⧉</button>
-      <button class="copy-btn" onclick="restartBot('hunter', this)" title="Restart Shitcoin Hunter">⟳</button>
     </span>
   </div>
 
@@ -450,7 +449,6 @@
       <span class="status-dot" id="wallet-status-dot"></span>
       <span style="font-size:10px;color:var(--dim)" id="wallet-pubkey">—</span>
       <button class="copy-btn" onclick="copyWallet('main', this)" title="Copy wallet address">⧉</button>
-      <button class="copy-btn" onclick="restartBot('trader', this)" title="Restart Sol Trader">⟳</button>
     </span>
   </div>
   <div id="wallet-tokens-list" style="display:flex;gap:0;flex-direction:column"></div>
@@ -573,24 +571,6 @@ async function copyWallet(which, btn) {
     setTimeout(() => { btn.textContent = orig; }, 1200);
   } catch (e) {
     console.error('Copy failed:', e);
-  }
-}
-
-async function restartBot(which, btn) {
-  const label = which === 'trader' ? 'Sol Trader' : 'Shitcoin Hunter';
-  if (!confirm(`Restart ${label}? Any in-progress cycle will be interrupted.`)) return;
-  const orig = btn.textContent;
-  btn.textContent = '…';
-  btn.disabled = true;
-  try {
-    const r = await post(`/api/restart/${which}`, {});
-    btn.textContent = r.success ? '✓' : '✗';
-    if (!r.success) console.error('Restart failed:', r.error);
-  } catch (e) {
-    btn.textContent = '✗';
-    console.error('Restart error:', e);
-  } finally {
-    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 1500);
   }
 }
 

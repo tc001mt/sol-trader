@@ -36,24 +36,6 @@ def _service_running(unit: str):
     except Exception:
         return None
 
-# Fixed, whitelisted mapping only — never build the unit name from client input,
-# this runs a real systemctl restart on the live trading services. Exact unit
-# strings must match the NOPASSWD sudoers entries character for character
-# (hunter's is registered WITHOUT the .service suffix).
-_RESTARTABLE_SERVICES = {
-    "trader": "mtelani_trading_scheduler.service",
-    "hunter": "shitcoin_hunter",
-}
-
-def _service_restart(unit: str):
-    import subprocess
-    r = subprocess.run(
-        ["/usr/bin/sudo", "-n", "/usr/bin/systemctl", "restart", unit],
-        capture_output=True, text=True, timeout=15,
-    )
-    if r.returncode != 0:
-        raise RuntimeError(r.stderr.strip() or f"systemctl restart {unit} failed")
-
 _MARKET_CACHE_FILE = os.path.join(os.path.dirname(__file__), "data", "last_market_status.json")
 
 def _translate_motivo(motivo: str) -> dict:
@@ -127,18 +109,6 @@ def api_rifugio():
     from trader import rifugio_usdc
     result = asyncio.run(rifugio_usdc())
     return jsonify({"success": True, "results": result})
-
-@app.route("/api/restart/<bot>", methods=["POST"])
-def api_restart(bot):
-    unit = _RESTARTABLE_SERVICES.get(bot)
-    if not unit:
-        return jsonify({"success": False, "error": f"Unknown bot: {bot}"}), 400
-    try:
-        _service_restart(unit)
-        return jsonify({"success": True, "unit": unit})
-    except Exception as e:
-        log.error(f"restart {unit} failed: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/regole/pending")
 def api_regole_pending():
