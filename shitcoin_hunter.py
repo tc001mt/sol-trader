@@ -502,6 +502,12 @@ async def replenish_sol_if_low():
 
     if remaining >= 0.5:
         log.warning(f"SOL top-up incomplete: still need ${remaining} more (USDC+USDT too low)")
+        await notifica(
+            f"⚠️ <b>SOL RESERVE LOW</b>: {sol:.5f} SOL (${sol_value_usd:.2f}), "
+            f"couldn't top up — still need ${remaining} more and USDC/USDT balance "
+            f"isn't enough to cover it. Deposit funds or the bot may soon be unable "
+            f"to pay fees for buys, sells, or exits."
+        )
 
 # ── Buy / Sell ────────────────────────────────────────────────────────────────
 
