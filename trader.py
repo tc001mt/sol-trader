@@ -249,10 +249,11 @@ async def esegui_swap(token_in: str, token_out: str, amount_in: float, slippage_
     for i in range(30):
         await asyncio.sleep(2)
 
-        # Rebroadcast every ~6s (idempotent — Solana dedupes by signature) so the
+        # Rebroadcast every ~2s (idempotent — Solana dedupes by signature) so the
         # tx keeps getting a chance to land for the full ~60-90s blockhash window,
-        # instead of only the first few seconds after the initial send.
-        if i > 0 and i % 3 == 0:
+        # instead of only the first few seconds after the initial send. Dense
+        # spacing matters most early on, while the blockhash is freshest.
+        if i > 0:
             try:
                 async with httpx.AsyncClient(timeout=10) as c:
                     await c.post(RPC_URL, json={
