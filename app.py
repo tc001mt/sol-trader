@@ -295,7 +295,7 @@ def api_hunter():
     # systemd status
     try:
         r = subprocess.run(
-            ["systemctl", "is-active", "shitcoin_hunter"],
+            ["/usr/bin/systemctl", "is-active", "shitcoin_hunter"],
             capture_output=True, text=True, timeout=3,
         )
         running = r.stdout.strip() == "active"
