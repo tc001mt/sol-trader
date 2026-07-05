@@ -376,6 +376,18 @@ async def esegui_decisione(decisione: dict, dati_mercato: dict) -> dict:
                 saldo = max(0, saldo - 0.01)
         if saldo <= 0:
             return {"success": False, "error": f"No {token} in wallet"}
+
+        # Optional partial sell (e.g. scheduler's SELL OVERRIDE, which takes profit
+        # on half a position). A dedicated field, never inferred from Claude's own
+        # importo_usdc on "vendi" decisions — that number is informational only and
+        # was never guaranteed to reflect an intended sell amount, so respecting it
+        # here would silently turn ordinary full-position sells into partial ones.
+        frazione = decisione.get("vendi_frazione", 1.0)
+        if frazione < 1.0:
+            saldo = round(saldo * frazione, 9)
+            if saldo <= 0:
+                return {"success": False, "error": f"No {token} in wallet after applying vendi_frazione"}
+
         # Lookup buy price to compute realized P&L
         from database import get_session, Trade as TradeModel
         prezzo_entrata_storico = 0.0

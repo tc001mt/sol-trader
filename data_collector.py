@@ -148,7 +148,9 @@ async def _get_prezzi_binance(tokens: list) -> dict:
         return {}
     try:
         import json as _json
-        params = {"symbols": _json.dumps(symbols)}
+        # Binance rejects spaces in the symbols array (default json.dumps separators
+        # include ", " which becomes %2C+ and triggers a 400) — must be compact.
+        params = {"symbols": _json.dumps(symbols, separators=(",", ":"))}
         async with httpx.AsyncClient(timeout=15) as c:
             r = await c.get(f"{BINANCE_BASE}/ticker/24hr", params=params)
             r.raise_for_status()

@@ -326,6 +326,7 @@ async def ciclo_trading():
                 "azione":          "vendi",
                 "token":           "SOL",
                 "importo_usdc":    importo_usdc,
+                "vendi_frazione":  0.5,   # actually sell only half — trader.py used to ignore this and sell 100%
                 "confidenza":      80,
                 "motivazione":     f"Override: RSI={rsi:.1f} overbought, MACD bearish. Taking profit on 50% SOL.",
                 "livello_allerta": livello,
@@ -624,12 +625,17 @@ async def main():
         id="analisi_settimanale",
     )
 
-    from log_audit import audit_settimanale
-    scheduler.add_job(
-        audit_settimanale,
-        CronTrigger(day_of_week="sun", hour=9, minute=0),
-        id="audit_log",
-    )
+    # TEMPORARILY DISABLED (2026-07-05): audit_settimanale cascades into
+    # auto_apply.py, which rewrites trader.py/scheduler.py/data_collector.py/
+    # claude_brain.py and restarts the service with no human review. We're
+    # actively hand-editing these same files right now — re-enable once
+    # that's done by uncommenting this block.
+    # from log_audit import audit_settimanale
+    # scheduler.add_job(
+    #     audit_settimanale,
+    #     CronTrigger(day_of_week="sun", hour=9, minute=0),
+    #     id="audit_log",
+    # )
 
     scheduler.start()
     log.info(f"Scheduler started — cycle every {CYCLE_MINUTES} min")
