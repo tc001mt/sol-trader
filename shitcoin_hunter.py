@@ -75,7 +75,10 @@ JUPITER_PRICE_URL = "https://api.jup.ag/price/v3"        # real-time exit price,
 JUPITER_REFERRAL_ACCOUNT = "7H4bLxfkAsqBSU5ZJn9aPrzUjz7pJWpcogUfUcRDD32i"
 CG_BASE           = "https://api.coingecko.com/api/v3"
 USDC_MINT         = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+USDT_MINT         = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+SOL_MINT          = "So11111111111111111111111111111111111111112"
 MIN_SOL_RESERVE   = 0.009
+SOL_RESERVE_TARGET_USD = 2.0   # top up to this value when SOL drops below MIN_SOL_RESERVE
 
 # Discovery filters
 MIN_MARKET_CAP  = 500_000    # $500k — enough for Jupiter to route
@@ -316,6 +319,10 @@ async def get_usdc_balance() -> float:
         log.error(f"USDC balance: {e}")
         return 0.0
 
+async def _get_usdt_balance() -> float:
+    raw, decimals = await get_token_raw(USDT_MINT)
+    return raw / (10 ** decimals) if raw else 0.0
+
 async def get_token_raw(mint: str) -> tuple[int, int]:
     """Returns (raw_amount, decimals) for a token in the hunter wallet."""
     try:
@@ -445,6 +452,56 @@ async def _swap(mint_in: str, mint_out: str, amount_raw: int) -> dict:
             pass
 
     return {"success": False, "error": "Confirmation timeout", "tx_hash": txid}
+
+# ── SOL fee-reserve top-up ──────────────────────────────────────────────────────
+
+async def replenish_sol_if_low():
+    """
+    SOL is consumed by network fees on every swap (buy, sell, and this top-up
+    itself). Left unchecked, it eventually runs out and the bot can't pay fees
+    for anything — not even to sell an open position. If SOL drops below
+    MIN_SOL_RESERVE, swap just enough stablecoin into SOL to bring the reserve
+    back up to SOL_RESERVE_TARGET_USD — USDC first, then USDT for any remainder
+    (whichever the wallet actually holds).
+    """
+    sol = await get_sol_balance()
+    if sol >= MIN_SOL_RESERVE:
+        return
+
+    prices = await get_jupiter_prices([SOL_MINT])
+    sol_price = prices.get(SOL_MINT)
+    if not sol_price:
+        log.warning(f"SOL low ({sol:.5f}) but no SOL price available — skipping top-up this cycle")
+        return
+
+    sol_value_usd = sol * sol_price
+    remaining = round(SOL_RESERVE_TARGET_USD - sol_value_usd, 2)
+    if remaining <= 0:
+        return
+
+    log.warning(f"⛽ SOL LOW: {sol:.5f} SOL (${sol_value_usd:.2f}) — need ${remaining} top-up")
+
+    for mint, symbol, get_balance in (
+        (USDC_MINT, "USDC", get_usdc_balance),
+        (USDT_MINT, "USDT", lambda: _get_usdt_balance()),
+    ):
+        if remaining < 0.5:
+            break
+        available = await get_balance()
+        amount_usd = round(min(remaining, available), 2)
+        if amount_usd < 0.5:
+            continue
+        amount_raw = int(amount_usd * 1_000_000)  # both USDC and USDT use 6 decimals
+        result = await _swap(mint, SOL_MINT, amount_raw)
+        if result.get("success"):
+            log.info(f"SOL top-up OK: +${amount_usd} {symbol} → SOL")
+            await notifica(f"⛽ <b>SOL REFILL</b>: swapped ${amount_usd} {symbol} → SOL (reserve was {sol:.5f} SOL)")
+            remaining = round(remaining - amount_usd, 2)
+        else:
+            log.error(f"SOL top-up swap failed ({symbol}): {result.get('error')}")
+
+    if remaining >= 0.5:
+        log.warning(f"SOL top-up incomplete: still need ${remaining} more (USDC+USDT too low)")
 
 # ── Buy / Sell ────────────────────────────────────────────────────────────────
 
@@ -608,6 +665,9 @@ async def run_cycle():
     await _state_lock.acquire()
     try:
         state = load_state()
+
+        # 0. Keep enough SOL for fees before anything else needs to swap this cycle
+        await replenish_sol_if_low()
 
         # 1. Fetch top 100 Solana tokens (dynamic discovery, 1 CoinGecko call)
         tokens = await get_prices()
