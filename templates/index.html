@@ -639,11 +639,17 @@ async function refreshStatus() {
         const saldoFmt = t.token === 'SOL' ? t.saldo.toFixed(4)
                        : t.token === 'USDC' || t.token === 'USDT' ? t.saldo.toFixed(2)
                        : t.saldo.toFixed(6);
-        const isLast = i === tokens.length - 1;
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;${isLast?'':'border-bottom:1px solid var(--border)'}">
+        const isLast   = i === tokens.length - 1;
+        const lowSol   = t.token === 'SOL' && t.saldo < 0.005;
+        const rowStyle = lowSol
+          ? 'background:#ff1744;border-radius:3px;padding:8px 10px;'
+          : `padding:8px 0;${isLast?'':'border-bottom:1px solid var(--border)'}`;
+        const labelCol = lowSol ? '#fff' : 'var(--dim)';
+        const saldoCol = lowSol ? '#fff' : 'var(--text)';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;${rowStyle}">
           <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:11px;color:var(--dim);width:44px;letter-spacing:0.08em">${t.token}</span>
-            <span style="font-size:13px;color:var(--text)">${saldoFmt}</span>
+            <span style="font-size:11px;color:${labelCol};width:44px;letter-spacing:0.08em">${t.token}</span>
+            <span style="font-size:13px;color:${saldoCol}">${saldoFmt}</span>
           </div>
           <span style="font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:#fff">${t.usd != null ? '$' + t.usd.toFixed(2) : '—'}</span>
         </div>`;
@@ -783,6 +789,7 @@ async function refreshHunter() {
                        : t.saldo.toFixed(4);
         const isLast = i === hTokens.length - 1;
         const border = isLast ? '' : 'border-bottom:1px solid var(--border);';
+        const lowSol = t.token === 'SOL' && t.saldo < 0.005;
 
         const p = positionsBySymbol[t.token];
         let posRow = '';
@@ -802,13 +809,19 @@ async function refreshHunter() {
           </div>`;
         }
 
-        return `<div style="padding:6px 0;${border}">
+        const rowStyle = lowSol
+          ? 'background:#ff1744;border-radius:3px;padding:6px 8px;'
+          : `padding:6px 0;${border}`;
+        const labelCol = lowSol ? '#fff' : 'inherit';
+        const saldoCol = lowSol ? '#fff' : 'var(--dim)';
+
+        return `<div style="${rowStyle}">
           <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px">
             <div>
-              <span style="font-weight:700;letter-spacing:0.05em">${t.token}</span>
-              <span style="color:var(--dim);font-size:10px;margin-left:6px">${saldoFmt}</span>
+              <span style="font-weight:700;letter-spacing:0.05em;color:${labelCol}">${t.token}</span>
+              <span style="color:${saldoCol};font-size:10px;margin-left:6px">${saldoFmt}</span>
             </div>
-            <span>${t.usd != null ? '$' + t.usd.toFixed(2) : '—'}</span>
+            <span style="color:${lowSol ? '#fff' : 'inherit'}">${t.usd != null ? '$' + t.usd.toFixed(2) : '—'}</span>
           </div>
           ${posRow}
         </div>`;
