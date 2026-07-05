@@ -408,6 +408,11 @@ async def _swap(mint_in: str, mint_out: str, amount_raw: int) -> dict:
     tx_b64_raw = order.get("transaction")
     if not tx_b64_raw:
         return {"success": False, "error": "No transaction in order response"}
+    log.info(
+        f"Order meta: router={order.get('router')} swapType={order.get('swapType')} "
+        f"expireAt={order.get('expireAt')} lastValidBlockHeight={order.get('lastValidBlockHeight')} "
+        f"prioritizationFeeLamports={order.get('prioritizationFeeLamports')}"
+    )
 
     # Sign and send
     raw_tx = base64.b64decode(tx_b64_raw)
@@ -449,13 +454,16 @@ async def _swap(mint_in: str, mint_out: str, amount_raw: int) -> dict:
         if i > 0:
             try:
                 async with httpx.AsyncClient(timeout=10) as c:
-                    await c.post(RPC_URL, json={
+                    rb = await c.post(RPC_URL, json={
                         "jsonrpc": "2.0", "id": 1,
                         "method":  "sendTransaction",
                         "params":  [tx_b64, send_params],
                     })
-            except Exception:
-                pass
+                    rb_json = rb.json()
+                    if "error" in rb_json:
+                        log.warning(f"Rebroadcast #{i} error: {rb_json['error']}")
+            except Exception as e:
+                log.warning(f"Rebroadcast #{i} failed (non-fatal): {e}")
 
         try:
             async with httpx.AsyncClient(timeout=10) as c:

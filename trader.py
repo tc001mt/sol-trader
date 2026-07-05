@@ -215,6 +215,11 @@ async def esegui_swap(token_in: str, token_out: str, amount_in: float, slippage_
     dec_out    = DECIMALS.get(token_out, 6)
     amount_out = int(order.get("outAmount", 0)) / (10 ** dec_out)
     log.info(f"Order: {amount_in} {token_in} → {amount_out:.6f} {token_out} | impact={price_impact:.3f}%")
+    log.info(
+        f"Order meta: router={order.get('router')} swapType={order.get('swapType')} "
+        f"expireAt={order.get('expireAt')} lastValidBlockHeight={order.get('lastValidBlockHeight')} "
+        f"prioritizationFeeLamports={order.get('prioritizationFeeLamports')}"
+    )
 
     from solders.transaction import VersionedTransaction
     from solders import message as solders_message
@@ -256,13 +261,16 @@ async def esegui_swap(token_in: str, token_out: str, amount_in: float, slippage_
         if i > 0:
             try:
                 async with httpx.AsyncClient(timeout=10) as c:
-                    await c.post(RPC_URL, json={
+                    rb = await c.post(RPC_URL, json={
                         "jsonrpc": "2.0", "id": 1,
                         "method":  "sendTransaction",
                         "params":  [signed_b64, send_params]
                     })
+                    rb_json = rb.json()
+                    if "error" in rb_json:
+                        log.warning(f"Rebroadcast #{i} error: {rb_json['error']}")
             except Exception as e:
-                log.warning(f"Rebroadcast failed (non-fatal): {e}")
+                log.warning(f"Rebroadcast #{i} failed (non-fatal): {e}")
 
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.post(RPC_URL, json={
