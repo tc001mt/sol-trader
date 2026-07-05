@@ -209,19 +209,14 @@ If this project is useful to you, consider donating — it helps cover server an
 
 SOL Trader uses the [Jupiter Referral Program](https://referral.jup.ag) to support ongoing development.
 
-By default, a small fee (0.5%) is applied to every swap and sent to the project's referral account. This does not affect your trading results — Jupiter absorbs the cost from routing fees.
+By default, a small fee (0.5%, configurable via `JUPITER_REFERRAL_FEE_BPS` in `.env`) is applied to every swap and sent to the project's referral account. This does not affect your trading results — Jupiter absorbs the cost from routing fees.
 
-**To use your own referral account instead:**
-1. Visit [referral.jup.ag](https://referral.jup.ag) and connect your wallet
-2. Create a referral account (one-time on-chain transaction)
-3. Copy the referral account address
-4. Add it to your `.env`:
-   ```
-   JUPITER_REFERRAL_ACCOUNT=<your_referral_account_address>
-   JUPITER_REFERRAL_FEE_BPS=50
-   ```
+The referral account itself is a fixed constant (`JUPITER_REFERRAL_ACCOUNT`) at the top of `trader.py` and `shitcoin_hunter.py`, not an environment variable. To point it at your own account instead:
+1. Visit [referral.jup.ag/dashboard-ultra](https://referral.jup.ag/dashboard-ultra) (not the regular dashboard — it uses a different, incompatible project ID) and connect your wallet
+2. Create a referral account and initialize token accounts for at least SOL, USDC, USDT
+3. Replace the `JUPITER_REFERRAL_ACCOUNT` constant in both files with your account's address
 
-**To disable referral entirely:** set `JUPITER_REFERRAL_ACCOUNT=` (empty).
+**To disable referral entirely:** remove the `params["referralAccount"] = ...` / `params["referralFee"] = ...` lines from `esegui_swap()` (`trader.py`) and `_swap()` (`shitcoin_hunter.py`).
 
 ---
 
