@@ -20,6 +20,11 @@ log = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "changeme")
 
+_WALLET_TOKEN_ORDER = {"SOL": 0, "USDC": 1, "USDT": 2}
+
+def _wallet_sort_key(t):
+    return (_WALLET_TOKEN_ORDER.get(t["token"], 99), t["usd"] is None, -(t["usd"] or 0))
+
 _MARKET_CACHE_FILE = os.path.join(os.path.dirname(__file__), "data", "last_market_status.json")
 
 def _translate_motivo(motivo: str) -> dict:
@@ -163,7 +168,7 @@ def api_status():
                 continue
             totale_usd += usd
             wallet_tokens.append({"token": token, "saldo": saldo, "usd": usd})
-        wallet_tokens.sort(key=lambda x: (x["usd"] is None, -(x["usd"] or 0)))
+        wallet_tokens.sort(key=_wallet_sort_key)
 
         return jsonify({
             "prezzi":        prezzi,
@@ -361,7 +366,7 @@ def api_hunter():
                 continue
             totale_usd += usd
             wallet_tokens.append({"token": token, "saldo": saldo, "usd": usd})
-        wallet_tokens.sort(key=lambda x: (x["usd"] is None, -(x["usd"] or 0)))
+        wallet_tokens.sort(key=_wallet_sort_key)
     except Exception as e:
         log.warning(f"hunter wallet error: {e}")
         wallet, wallet_tokens, totale_usd = {}, [], 0.0
