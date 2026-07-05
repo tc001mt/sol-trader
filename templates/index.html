@@ -489,12 +489,12 @@
     <table>
       <thead>
         <tr>
-          <th>Date</th><th>Token</th><th>Action</th>
+          <th>Date</th><th>Bot</th><th>Token</th><th>Action</th>
           <th>USDC</th><th>Result</th><th>Conf</th>
         </tr>
       </thead>
       <tbody id="trades-tbody">
-        <tr><td colspan="6" style="color:var(--dim)">Loading...</td></tr>
+        <tr><td colspan="7" style="color:var(--dim)">Loading...</td></tr>
       </tbody>
     </table>
   </div>
@@ -700,21 +700,29 @@ async function refreshTrades() {
   const trades = await get('/api/trades?n=6');
   const tbody  = document.getElementById('trades-tbody');
   if (!trades.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--dim)">No trades</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--dim)">No trades</td></tr>';
     return;
   }
   tbody.innerHTML = trades.map(t => {
-    const dt  = t.data ? t.data.substring(0,16).replace('T',' ') : '—';
+    const dt     = t.data ? t.data.substring(0,16).replace('T',' ') : '—';
+    const failed = t.eseguito === false && (t.azione === 'compra' || t.azione === 'vendi');
     const res = t.risultato_pct
       ? `<span class="${t.risultato_pct > 0 ? 'up':'down'}">${t.risultato_pct > 0 ? '+':''}${t.risultato_pct}%</span>`
       : '—';
-    const imp = t.importo_usdc ? '$' + (parseFloat(t.importo_usdc) < 1 ? parseFloat(t.importo_usdc).toFixed(2) : parseFloat(t.importo_usdc).toFixed(0)) : '—';
+    const imp = failed
+      ? '<span style="color:var(--dim)">—</span>'
+      : (t.importo_usdc ? '$' + (parseFloat(t.importo_usdc) < 1 ? parseFloat(t.importo_usdc).toFixed(2) : parseFloat(t.importo_usdc).toFixed(0)) : '—');
+    const azioneBadge = failed
+      ? `<span class="badge" style="background:rgba(255,59,92,0.15);color:var(--danger)" title="Transaction did not confirm on-chain">✗ ${t.azione} failed</span>`
+      : `<span class="badge badge-${t.azione}">${t.azione}</span>`;
+    const bot = t.bot === 'hunter' ? '🦟 Hunter' : '🤖 Main';
     return `<tr>
       <td>${dt}</td>
+      <td style="font-size:10px;color:var(--dim)">${bot}</td>
       <td>${t.token}</td>
-      <td><span class="badge badge-${t.azione}">${t.azione}</span></td>
+      <td>${azioneBadge}</td>
       <td>${imp}</td>
-      <td>${res}</td>
+      <td>${failed ? '—' : res}</td>
       <td>${t.confidenza ?? '—'}%</td>
     </tr>`;
   }).join('');
