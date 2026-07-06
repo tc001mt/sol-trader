@@ -574,6 +574,24 @@ async function copyWallet(which, btn) {
   }
 }
 
+async function sellHunterToken(cgId, symbol, btn) {
+  if (!cgId) return;
+  if (!confirm(`Sell ${symbol} now? Executed within ~20s by the hunter's position monitor.`)) return;
+  const orig = btn.textContent;
+  btn.textContent = '…';
+  btn.disabled = true;
+  try {
+    const r = await post(`/api/hunter/sell/${cgId}`, {});
+    btn.textContent = r.success ? '✓' : '✗';
+    if (!r.success) console.error('Sell queue failed:', r.error);
+  } catch (e) {
+    btn.textContent = '✗';
+    console.error('Sell queue error:', e);
+  } finally {
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2000);
+  }
+}
+
 async function get(url) {
   const r = await fetch(url);
   return r.json();
@@ -822,9 +840,12 @@ async function refreshHunter() {
     const posKeys    = Object.keys(positions);
     document.getElementById('h-pos-open').textContent = posKeys.length;
     const positionsBySymbol = {};
+    const cgIdBySymbol = {};
     posKeys.forEach(cgId => {
       const p = positions[cgId];
-      positionsBySymbol[(p.symbol || cgId).toUpperCase()] = p;
+      const sym = (p.symbol || cgId).toUpperCase();
+      positionsBySymbol[sym] = p;
+      cgIdBySymbol[sym] = cgId;
     });
 
     // Wallet balances (with matching open position shown as a second, tinted row)
@@ -851,11 +872,15 @@ async function refreshHunter() {
             : '—';
           const entry = p.entry_price ? ('$' + parseFloat(p.entry_price).toPrecision(4)) : '—';
           const since = p.buy_time ? new Date(p.buy_time).toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+          const cgId  = cgIdBySymbol[t.token] || '';
           posRow = `<div style="display:flex;justify-content:space-between;align-items:center;
                                 padding:5px 8px;margin-top:4px;border-radius:2px;
                                 background:rgba(255,184,0,0.08);border-left:2px solid var(--warn);font-size:11px">
             <span style="color:var(--dim)">${entry} entry · ${since}</span>
-            ${pctStr}
+            <span style="display:flex;align-items:center;gap:6px">
+              ${pctStr}
+              <button class="copy-btn" onclick="sellHunterToken('${cgId}','${t.token}', this)" title="Sell ${t.token} now">✕</button>
+            </span>
           </div>`;
         }
 

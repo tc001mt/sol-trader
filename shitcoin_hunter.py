@@ -102,6 +102,7 @@ BLACKLIST_CG_IDS = {
 DATA_DIR         = os.path.join(_BASE_DIR, "data")
 STATE_FILE       = os.path.join(DATA_DIR, "shitcoin_state.json")
 MINT_CACHE_FILE  = os.path.join(DATA_DIR, "hunter_mint_cache.json")
+MANUAL_SELL_FILE = os.path.join(DATA_DIR, "manual_sell_queue.json")
 
 # ── Seed mints (pre-known, avoids cold-start API lookups) ─────────────────────
 SEED_MINTS = {
@@ -184,6 +185,39 @@ def save_state(state: dict):
             json.dump(state, f, indent=2, default=str)
     except Exception as e:
         log.error(f"State save error: {e}")
+
+# ── Manual sell queue ─────────────────────────────────────────────────────────
+# Dashboard-triggered sells never touch state.json directly (that would race
+# with monitor_positions/run_cycle, which already hold _state_lock) — they just
+# queue a cg_id here, and the next 20s position-monitor tick sells it using the
+# same locked, already-tested sell_token() path as TP/SL.
+
+def queue_manual_sell(cg_id: str):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    queue = set()
+    if os.path.exists(MANUAL_SELL_FILE):
+        try:
+            with open(MANUAL_SELL_FILE) as f:
+                queue = set(json.load(f))
+        except Exception:
+            pass
+    queue.add(cg_id)
+    with open(MANUAL_SELL_FILE, "w") as f:
+        json.dump(list(queue), f)
+
+def _pop_manual_sell_queue() -> set:
+    if not os.path.exists(MANUAL_SELL_FILE):
+        return set()
+    try:
+        with open(MANUAL_SELL_FILE) as f:
+            queue = set(json.load(f))
+    except Exception:
+        return set()
+    try:
+        os.remove(MANUAL_SELL_FILE)
+    except Exception:
+        pass
+    return queue
 
 # ── Telegram ──────────────────────────────────────────────────────────────────
 
@@ -839,11 +873,15 @@ async def monitor_positions():
         state = load_state()
         positions = state.get("positions", {})
         if not positions:
+            _pop_manual_sell_queue()  # nothing to sell — clear any stale request
             return
 
+        manual_queue = _pop_manual_sell_queue()
         mint_by_cg = {cg_id: p["mint"] for cg_id, p in positions.items() if p.get("mint")}
         prices = await get_jupiter_prices(list(mint_by_cg.values()))
         if not prices:
+            for cg_id in manual_queue:  # couldn't price this tick — retry next tick
+                queue_manual_sell(cg_id)
             return
 
         changed = False
@@ -859,7 +897,9 @@ async def monitor_positions():
             pos["current_price"] = curr
             pos["current_pct"]   = round(pct, 2)
             changed = True
-            if pct >= TAKE_PROFIT_PCT:
+            if cg_id in manual_queue:
+                await sell_token(cg_id, "Manual sell", curr, state)
+            elif pct >= TAKE_PROFIT_PCT:
                 await sell_token(cg_id, f"TP +{pct:.1f}%", curr, state)
             elif pct <= -STOP_LOSS_PCT:
                 await sell_token(cg_id, f"SL {pct:.1f}%", curr, state)

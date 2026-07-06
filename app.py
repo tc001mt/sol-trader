@@ -110,6 +110,15 @@ def api_rifugio():
     result = asyncio.run(rifugio_usdc())
     return jsonify({"success": True, "results": result})
 
+@app.route("/api/hunter/sell/<cg_id>", methods=["POST"])
+def api_hunter_sell(cg_id):
+    # Never touches shitcoin_hunter's state.json directly (that would race with
+    # its own locked monitor loop) — just queues the request, sold within ~20s
+    # by the hunter's own position monitor using its normal sell_token() path.
+    from shitcoin_hunter import queue_manual_sell
+    queue_manual_sell(cg_id)
+    return jsonify({"success": True, "queued": cg_id})
+
 @app.route("/api/regole/pending")
 def api_regole_pending():
     from database import get_session, Regole, _regole_to_dict
