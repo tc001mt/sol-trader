@@ -85,6 +85,13 @@ MIN_MARKET_CAP  = 500_000    # $500k — enough for Jupiter to route
 MIN_VOLUME_24H  = 100_000    # $100k — real activity
 MAX_PRICE_IMPACT = 3.0       # % — reject illiquid swaps
 
+# A token already up more than this in the last 24h is treated as having
+# already made its move — buying here has repeatedly meant buying the top
+# right before it reverts (2026-07-05: BIRB bought at +9.6% 24h, -9% within
+# hours). Enforced here as a hard filter, not just prompt text, since an LLM
+# instruction alone isn't a reliable guarantee.
+MAX_CH24H_ALREADY_PUMPED = 8.0
+
 # Tokens that should never be bought (stablecoins, wrapped BTC/ETH, native SOL)
 BLACKLIST_CG_IDS = {
     "usd-coin", "tether", "solana", "wrapped-solana",
@@ -658,7 +665,7 @@ async def ask_claude(candidates: list[dict]) -> str:
     prompt = (
         "Solana memecoin momentum trader. Buy only the clearest pump signal.\n"
         "Buy rules: volume spike ≥ 1.3x AND 1h positive AND 24h positive.\n"
-        "Do NOT buy: 24h already >35% (too late), 1h slowing or negative.\n\n"
+        "Do NOT buy: 1h slowing or negative (24h already too high is pre-filtered out).\n\n"
         f"Tokens:\n{rows}\n\n"
         'Reply ONLY with valid JSON using the cg_id field: '
         '{"cg_id": "bonk"} or {"cg_id": "NONE", "reason": "<max 15 words>"}'
@@ -774,10 +781,13 @@ async def run_cycle():
                         vol_spike = t["vol"] / avg_vol if avg_vol > 0 else 1.0
                         candidates.append({**t, "vol_spike": round(vol_spike, 2)})
 
-                    # Pre-filter: only pass interesting tokens to Claude
+                    # Pre-filter: only pass interesting tokens to Claude. Hard-excludes
+                    # anything already up more than MAX_CH24H_ALREADY_PUMPED in 24h —
+                    # a mechanical guard, not just a prompt instruction (see constant).
                     interesting = [
                         c for c in candidates
-                        if c["vol_spike"] >= 1.3 or (c["ch1h"] > 1.5 and c["ch24h"] > 3)
+                        if c["ch24h"] <= MAX_CH24H_ALREADY_PUMPED
+                        and (c["vol_spike"] >= 1.3 or (c["ch1h"] > 1.5 and c["ch24h"] > 3))
                     ]
 
                     if interesting:
