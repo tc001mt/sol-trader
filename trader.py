@@ -190,6 +190,14 @@ async def esegui_swap(token_in: str, token_out: str, amount_in: float, slippage_
     params["referralAccount"] = JUPITER_REFERRAL_ACCOUNT
     params["referralFee"]     = int(os.getenv("SOL_TRADING_JUPITER_REFERRAL_FEE_BPS", "50"))
 
+    # Prefer a normal AMM route over JupiterZ (RFQ): RFQ quotes carry their own
+    # short expiry (~53s observed) on top of blockhash validity — 5 of 6 SOL
+    # buys on 2026-07-07 timed out specifically on jupiterz/rfq routes, the
+    # one that succeeded was metis. Only fall back to allowing JupiterZ if no
+    # route exists without it (thin/exotic pairs), so we never block a trade
+    # that would otherwise be possible.
+    params["excludeRouters"] = "jupiterz"
+
     try:
         async with httpx.AsyncClient(timeout=20) as c:
             r = await c.get(JUPITER_ORDER_URL, params=params)
@@ -199,6 +207,17 @@ async def esegui_swap(token_in: str, token_out: str, amount_in: float, slippage_
             order = r.json()
     except Exception as e:
         return {"success": False, "error": f"Order error: {e}"}
+
+    if order.get("error") or not order.get("transaction"):
+        log.warning(f"No route excluding JupiterZ ({order.get('error')}) — retrying with it allowed")
+        params.pop("excludeRouters", None)
+        try:
+            async with httpx.AsyncClient(timeout=20) as c:
+                r = await c.get(JUPITER_ORDER_URL, params=params)
+                r.raise_for_status()
+                order = r.json()
+        except Exception as e:
+            return {"success": False, "error": f"Order error (retry): {e}"}
 
     if order.get("errorCode"):
         return {"success": False, "error": f"Jupiter: {order.get('errorMessage', order['errorCode'])}"}

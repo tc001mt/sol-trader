@@ -430,6 +430,13 @@ async def _swap(mint_in: str, mint_out: str, amount_raw: int) -> dict:
     params["referralAccount"] = JUPITER_REFERRAL_ACCOUNT
     params["referralFee"]     = int(os.getenv("SHITCOIN_HUNTER_JUPITER_REFERRAL_FEE_BPS", "50"))
 
+    # Prefer a normal AMM route over JupiterZ (RFQ): RFQ quotes carry their own
+    # short expiry (~53s observed) on top of blockhash validity, which caused
+    # most SOL-buy timeouts in the main bot. Fall back to allowing JupiterZ
+    # only if no route exists without it (common for thin memecoin pairs),
+    # so we never block a trade that would otherwise be possible.
+    params["excludeRouters"] = "jupiterz"
+
     try:
         async with httpx.AsyncClient(timeout=20) as c:
             r = await c.get(JUPITER_ORDER_URL, params=params)
@@ -437,6 +444,17 @@ async def _swap(mint_in: str, mint_out: str, amount_raw: int) -> dict:
             order = r.json()
     except Exception as e:
         return {"success": False, "error": f"Order: {e}"}
+
+    if order.get("error") or not order.get("transaction"):
+        log.warning(f"No route excluding JupiterZ ({order.get('error')}) — retrying with it allowed")
+        params.pop("excludeRouters", None)
+        try:
+            async with httpx.AsyncClient(timeout=20) as c:
+                r = await c.get(JUPITER_ORDER_URL, params=params)
+                r.raise_for_status()
+                order = r.json()
+        except Exception as e:
+            return {"success": False, "error": f"Order (retry): {e}"}
 
     if order.get("errorCode"):
         return {"success": False, "error": f"Jupiter: {order.get('errorMessage', order['errorCode'])}"}
