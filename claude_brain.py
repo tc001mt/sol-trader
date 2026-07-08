@@ -488,9 +488,14 @@ If azione=rifugio → token=USDC
             "token":                 None,
             "importo_usdc":          0,
             "confidenza":            0,
-            "motivazione":           f"error: {str(e)[:50]}",
+            # Prefixed distinctly from a real "aspetta" decision — this is a
+            # failed API call (e.g. OpenRouter out of credits), not the model
+            # choosing to wait. scheduler.py alerts on this prefix so it can't
+            # silently masquerade as normal caution for hours again.
+            "motivazione":           f"⚠️ TECHNICAL ERROR (not a real decision): {str(e)[:120]}",
             "riferimento_storico":   None,
             "nuovo_filtro_proposto": None,
+            "errore_tecnico":        True,
         }
 
 

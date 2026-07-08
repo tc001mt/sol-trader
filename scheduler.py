@@ -17,6 +17,7 @@ CYCLE_MINUTES = int(os.getenv("SOL_TRADING_CYCLE_MINUTES", 15))
 # Covers: wSOL ATA rent (~0.002) + priority fee (~0.0005) + safety buffer.
 MIN_SOL_PER_COMPRA = 0.009
 _ultima_notifica_sol_basso: datetime | None = None
+_ultima_notifica_errore_ai: datetime | None = None
 
 # ── Telegram notifications ────────────────────────────────────────────────────────
 
@@ -247,6 +248,22 @@ async def ciclo_trading():
         sicurezza = result["sicurezza"]
         decisione = result["decisione"]
         livello   = result["livello"]
+
+        # AI decision call failed (e.g. OpenRouter out of credits) — this is NOT
+        # a real "aspetta" choice, alert loudly instead of silently drifting for
+        # hours indistinguishable from normal caution (happened 2026-07-08: 4h,
+        # 12 cycles, before anyone noticed the bot wasn't deciding anything).
+        global _ultima_notifica_errore_ai
+        if decisione.get("errore_tecnico"):
+            log.error(f"⚠️ AI DECISION FAILED — not a real decision: {decisione.get('motivazione')}")
+            ora = datetime.now(timezone.utc)
+            if _ultima_notifica_errore_ai is None or (ora - _ultima_notifica_errore_ai) > timedelta(hours=1):
+                _ultima_notifica_errore_ai = ora
+                await notifica(
+                    f"🔴 <b>AI DECISION FAILED</b>\n"
+                    f"{decisione.get('motivazione', '')[:200]}\n"
+                    f"The bot is NOT evaluating trades this cycle — check OpenRouter credits/API status."
+                )
 
         # ── Data for override ─────────────────────────────────────────────────
         usdc_balance = wallet.get("USDC", 0)
