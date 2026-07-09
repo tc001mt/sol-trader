@@ -408,21 +408,21 @@ async def esegui_decisione(decisione: dict, dati_mercato: dict) -> dict:
         wallet = await get_wallet_completo()
         saldo = wallet.get(token, 0)
         prezzo = prezzi.get(token, {}).get("price", 0)
-        # Intentional: double reserve for SOL — 0.005 for small positions
-        # (<=$1.5, sell almost all), 0.01 for normal positions (wider margin).
-        # Do not merge into a single constant.
         # Intentional: the sell must NEVER be blocked by a missing/zero price —
-        # price is only used to choose which reserve to apply,
-        # never as a precondition that prevents the swap (this caused a real
-        # sell outage for hours when the price was unavailable).
+        # price is only used for logging here, never as a precondition that
+        # prevents the swap (this caused a real sell outage for hours when the
+        # price was unavailable).
+        # Single reserve regardless of position size — matches scheduler.py's
+        # MIN_SOL_PER_COMPRA. A smaller reserve for small positions (as this
+        # used to do, 0.005) doesn't make sense: future transaction fees cost
+        # the same real SOL no matter how small the sale is, so under-reserving
+        # here is exactly how the wallet ends up below the fee floor (happened
+        # 2026-07-09: a take-profit sell left 0.0049 SOL, unable to pay fees).
         if token == "SOL":
-            SOL_FEE_RESERVE = 0.005
+            SOL_FEE_RESERVE = 0.009
             valore_sol = saldo * prezzo if prezzo else 0
-            if valore_sol <= 1.5:
-                saldo = max(0, saldo - SOL_FEE_RESERVE)
-                log.info(f"Low remaining SOL (${valore_sol:.2f}) — selling all, reserving {SOL_FEE_RESERVE} SOL for fees")
-            else:
-                saldo = max(0, saldo - 0.01)
+            saldo = max(0, saldo - SOL_FEE_RESERVE)
+            log.info(f"SOL sell: reserving {SOL_FEE_RESERVE} SOL for fees (position value ~${valore_sol:.2f})")
         if saldo <= 0:
             return {"success": False, "error": f"No {token} in wallet"}
 
